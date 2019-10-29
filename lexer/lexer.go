@@ -20,17 +20,15 @@ func New(input string) *Lexer {
 		input: input,
 	}
 
-	l.readChar()
+	//l.readChar()
 	return l
 }
 
 func (l *Lexer) NextToken() token.Token {
+	// 1文字進める
+	l.readChar()
+
 	var tok token.Token
-
-	// 空白を飛ばす
-	l.skipWhitespace()
-
-	// TODO: 行の先頭がタブではなくスペースになっている場合も考慮する？
 
 	switch l.ch {
 	case '#':
@@ -38,14 +36,28 @@ func (l *Lexer) NextToken() token.Token {
 		tok.Literal = literal
 		tok.Type = token.GetHeadingToken(cnt)
 	case '-':
-		tok = newToken(token.MINUS, l.ch)
+		tok = newToken(token.HYPHEN, l.ch)
 	case '\t':
 		literal, cnt := l.readTab()
 		tok.Literal = literal
 		tok.Type = token.GetTabToken(cnt)
-		// タブの直後はスペースが入らないので、最後のreadCharを実行させたくない
-		return tok
-	case '':
+	case ' ':
+		//if l.lookBackChar() == '\n' {
+		//	literal, cnt := l.readSpace()
+		//	tok.Literal = literal
+		//	tok.Type = token.GetSpaceToken(cnt)
+		//} else {
+		//	tok = newToken(token.SPACE1, l.ch)
+		//}
+		tok = newToken(token.SPACE, l.ch)
+	case '\n':
+		tok = newToken(token.LINE_FEED_CODE_N, l.ch)
+	case '\r':
+		tok = newToken(token.LINE_FEED_CODE_R, l.ch)
+	case '>':
+		if l.lookBackChar() == '\n' {
+			tok = newToken(token.CITATION, l.ch)
+		}
 		// TODO: 数値+ドット+空白のセットで判定
 	//	// TODO: to 3chars
 	//	tok = newToken(token.MINUS, l.ch)
@@ -78,8 +90,6 @@ func (l *Lexer) NextToken() token.Token {
 		tok.Type = token.STRING
 	}
 
-	// 1文字進める
-	l.readChar()
 	return tok
 }
 
@@ -105,7 +115,7 @@ func (l *Lexer) readChar() {
 	l.readPosition += 1
 }
 
-func (l *Lexer) peekChar() byte {
+func (l *Lexer) peekNextChar() byte {
 	// 次の文字を覗き見る
 	if l.readPosition >= len(l.input) {
 		return 0
@@ -114,62 +124,89 @@ func (l *Lexer) peekChar() byte {
 	}
 }
 
-func (l *Lexer) skipWhitespace() {
-	// TODO: タブはインデントを判定する為に使うのでスキップしない
-	//for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
-	//	// 空白、タブ、改行のときに飛ばして1文字進める
-	//	l.readChar()
-	//}
-	for l.ch == ' ' || l.ch == '\n' || l.ch == '\r' {
-		// 空白や改行を飛ばして1文字進める
-		l.readChar()
+func (l *Lexer) peek2ndOrderChar() byte {
+	// 次の次の文字を覗き見る
+	if l.readPosition+1 >= len(l.input) {
+		return 0
+	} else {
+		return l.input[l.readPosition+1]
 	}
 }
 
-func (l *Lexer) isHeading() bool {
-	return l.ch == '#'
+func (l *Lexer) lookBackChar() byte {
+	// 直前の文字を見る
+	if l.readPosition < 2 {
+		return 0
+	}
+	return l.input[l.readPosition-2]
+}
+
+func isHeading(ch byte) bool {
+	return ch == '#'
 }
 
 func (l *Lexer) readHeading() (string, int) {
 	position := l.position
 
-	var cnt int
-	for l.isHeading() {
+	cnt := 1
+	for isHeading(l.ch) && isHeading(l.peekNextChar()) {
 		// 文字が途切れるまで読み込む
 		l.readChar()
 		cnt++
 	}
 	// positionから、readCharで進んだところまで抽出
-	return l.input[position:l.position], cnt
+	return l.input[position : l.position+1], cnt
 }
 
 func (l *Lexer) readString() string {
 	position := l.position
-	for !l.isLineFeedCode() {
+	for !isLineFeedCode(l.ch) && !isLineFeedCode(l.peekNextChar()) {
 		// 文字が途切れるまで読み込む
 		l.readChar()
 	}
 	// positionから、readCharで進んだところまで抽出
-	return l.input[position:l.position]
+	return l.input[position : l.position+1]
 }
 
-func (l *Lexer) isLineFeedCode() bool {
-	return l.ch == '\n' || l.ch == '\r'
+func isLineFeedCode(ch byte) bool {
+	return ch == '\n' || ch == '\r'
 }
 
-func (l *Lexer) isTab() bool {
-	return l.ch == '\t'
+func isTab(ch byte) bool {
+	return ch == '\t'
 }
 
 func (l *Lexer) readTab() (string, int) {
 	position := l.position
 
-	var cnt int
-	for l.isTab() {
+	cnt := 1
+	for isTab(l.ch) && isTab(l.peekNextChar()) {
 		// 文字が途切れるまで読み込む
 		l.readChar()
 		cnt++
 	}
 	// positionから、readCharで進んだところまで抽出
-	return l.input[position:l.position], cnt
+	return l.input[position : l.position+1], cnt
+}
+
+func isSpace(ch byte) bool {
+	return ch == ' '
+}
+
+func (l *Lexer) readSpace() (string, int) {
+	position := l.position
+
+	cnt := 1
+	for isSpace(l.ch) && isSpace(l.peekNextChar()) && cnt <= 4 {
+		// 文字が途切れるまで読み込む
+		l.readChar()
+		cnt++
+	}
+	// positionから、readCharで進んだところまで抽出
+	return l.input[position : l.position+1], cnt
+}
+
+func isDigit(ch byte) bool {
+	// 数値
+	return '0' <= ch && ch <= '9'
 }

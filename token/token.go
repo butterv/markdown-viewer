@@ -7,7 +7,7 @@ const (
 	ILLEGAL = "ILLEGAL" // 解析に失敗した場合に設定するTokenType
 	EOF     = "EOF"     // コードの終了
 
-	INT    = "INT"
+	//INT    = "INT"
 	STRING = "STRING" // 文字列
 
 	// 識別子
@@ -22,47 +22,56 @@ const (
 	TAB2 = "\t\t"
 	TAB3 = "\t\t\t"
 
-	GT          = ">"
-	DOT         = "."
-	ASTERISK    = "*"
-	UNDER_SCORE = "_"
-	MINUS       = "-"
-	PLUS        = "+"
+	SPACE = " "
+	//SPACE4 = "    "
 
-	LPAREN   = "("
-	RPAREN   = ")"
-	LBRACKET = "["
-	RBRACKET = "]"
+	LINE_FEED_CODE_N = "\n"
+	LINE_FEED_CODE_R = "\r"
 
-	// ここから下は不要かも
-	ASSIGN = "="
+	CITATION = ">"
+	HYPHEN   = "-"
 
-	BANG = "!"
-
-	SLASH = "/"
-
-	LT = "<"
-
-	EQ     = "=="
-	NOT_EQ = "!="
-
-	// デリミタ
-	COMMA     = ","
-	SEMICOLON = ";"
-	COLON     = ":"
-
-	LBRACE = "{"
-	RBRACE = "}"
-
-	// キーワード
-	FUNCTION = "FUNCTION"
-	LET      = "LET"
-	TRUE     = "TRUE"
-	FALSE    = "FALSE"
-	IF       = "IF"
-	ELSE     = "ELSE"
-	RETURN   = "RETURN"
-	MACRO    = "MACRO"
+	//DOT         = "."
+	//ASTERISK    = "*"
+	//UNDER_SCORE = "_"
+	//
+	//PLUS = "+"
+	//
+	//LPAREN   = "("
+	//RPAREN   = ")"
+	//LBRACKET = "["
+	//RBRACKET = "]"
+	//
+	//// ここから下は不要かも
+	//ASSIGN = "="
+	//
+	//BANG = "!"
+	//
+	//SLASH = "/"
+	//
+	//GT = ">"
+	//LT = "<"
+	//
+	//EQ     = "=="
+	//NOT_EQ = "!="
+	//
+	//// デリミタ
+	//COMMA     = ","
+	//SEMICOLON = ";"
+	//COLON     = ":"
+	//
+	//LBRACE = "{"
+	//RBRACE = "}"
+	//
+	//// キーワード
+	//FUNCTION = "FUNCTION"
+	//LET      = "LET"
+	//TRUE     = "TRUE"
+	//FALSE    = "FALSE"
+	//IF       = "IF"
+	//ELSE     = "ELSE"
+	//RETURN   = "RETURN"
+	//MACRO    = "MACRO"
 )
 
 type Token struct {
