@@ -45,6 +45,8 @@ func (l *Lexer) NextToken() token.Token {
 		tok.Type = token.GetTabToken(cnt)
 		// タブの直後はスペースが入らないので、最後のreadCharを実行させたくない
 		return tok
+	case '':
+		// TODO: 数値+ドット+空白のセットで判定
 	//	// TODO: to 3chars
 	//	tok = newToken(token.MINUS, l.ch)
 	//case '>':
