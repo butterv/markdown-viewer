@@ -88,3 +88,16 @@ func GetHeadingToken(cnt int) TokenType {
 		return ILLEGAL
 	}
 }
+
+func GetTabToken(cnt int) TokenType {
+	switch cnt {
+	case 1:
+		return TAB1
+	case 2:
+		return TAB2
+	case 3:
+		return TAB3
+	default:
+		return ILLEGAL
+	}
+}

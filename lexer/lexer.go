@@ -1,6 +1,8 @@
 package lexer
 
-import "github.com/istsh/markdown-viewer/token"
+import (
+	"github.com/istsh/markdown-viewer/token"
+)
 
 type Lexer struct {
 	input        string // 入力
@@ -25,15 +27,24 @@ func New(input string) *Lexer {
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
 
-	// 空白、タブ、改行を飛ばす
-	// l.skipWhitespace()
+	// 空白を飛ばす
+	l.skipWhitespace()
+
+	// TODO: 行の先頭がタブではなくスペースになっている場合も考慮する？
 
 	switch l.ch {
 	case '#':
 		literal, cnt := l.readHeading()
 		tok.Literal = literal
 		tok.Type = token.GetHeadingToken(cnt)
-	//case '-':
+	case '-':
+		tok = newToken(token.MINUS, l.ch)
+	case '\t':
+		literal, cnt := l.readTab()
+		tok.Literal = literal
+		tok.Type = token.GetTabToken(cnt)
+		// タブの直後はスペースが入らないので、最後のreadCharを実行させたくない
+		return tok
 	//	// TODO: to 3chars
 	//	tok = newToken(token.MINUS, l.ch)
 	//case '>':
@@ -102,9 +113,13 @@ func (l *Lexer) peekChar() byte {
 }
 
 func (l *Lexer) skipWhitespace() {
-	// TODO: タブや空白はインデントを判定する為に使うのでスキップしない
-	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
-		// 空白、タブ、改行のときに飛ばして1文字進める
+	// TODO: タブはインデントを判定する為に使うのでスキップしない
+	//for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+	//	// 空白、タブ、改行のときに飛ばして1文字進める
+	//	l.readChar()
+	//}
+	for l.ch == ' ' || l.ch == '\n' || l.ch == '\r' {
+		// 空白や改行を飛ばして1文字進める
 		l.readChar()
 	}
 }
@@ -138,4 +153,21 @@ func (l *Lexer) readString() string {
 
 func (l *Lexer) isLineFeedCode() bool {
 	return l.ch == '\n' || l.ch == '\r'
+}
+
+func (l *Lexer) isTab() bool {
+	return l.ch == '\t'
+}
+
+func (l *Lexer) readTab() (string, int) {
+	position := l.position
+
+	var cnt int
+	for l.isTab() {
+		// 文字が途切れるまで読み込む
+		l.readChar()
+		cnt++
+	}
+	// positionから、readCharで進んだところまで抽出
+	return l.input[position:l.position], cnt
 }
