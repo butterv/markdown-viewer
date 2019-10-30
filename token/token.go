@@ -31,6 +31,8 @@ const (
 	CITATION = ">"
 	HYPHEN   = "-"
 
+	BACK_QUOTE = "`"
+
 	//DOT         = "."
 	//ASTERISK    = "*"
 	//UNDER_SCORE = "_"
@@ -76,7 +78,7 @@ const (
 
 type Token struct {
 	Type    TokenType // トークンタイプ
-	Literal string    // トークンリテラル、Typeに応じた文字列
+	Literal []byte    // トークンリテラル、Typeに応じたbyte配列
 }
 
 func GetHeadingToken(cnt int) TokenType {
