@@ -1,19 +1,18 @@
 package lexer
 
 import (
+	"bytes"
+	"io/ioutil"
 	"testing"
 
 	"github.com/istsh/markdown-viewer/token"
 )
 
 func TestLexer1(t *testing.T) {
-	input := `# Heading1
-
-## Heading2
-
-### Heading3
-
-`
+	input, err := ioutil.ReadFile("../testdata/1.md.golden")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tests := []struct {
 		expectedType    token.TokenType
@@ -46,28 +45,17 @@ func TestLexer1(t *testing.T) {
 		if tok.Type != tt.expectedType {
 			t.Errorf("tests[%d] - tokentype wrong. expected=%q, got=%q", i, tt.expectedType, tok.Type)
 		}
-		if tok.Literal != tt.expectedLiteral {
+		if !bytes.Equal(tok.Literal, []byte(tt.expectedLiteral)) {
 			t.Errorf("tests[%d] - literal wrong. expected=%q, got=%q", i, tt.expectedLiteral, tok.Literal)
 		}
 	}
 }
 
 func TestLexer2(t *testing.T) {
-	input := `# Heading1
-## Heading1_1
-- List1
-- List2
-# Heading2
-## Heading2_1
-- List1
-	- List1_1
-	- List1_2
-# Heading3
-## Heading3_1
-- List1
-	- List1_1
-		- List1_1_1
-`
+	input, err := ioutil.ReadFile("../testdata/2.md.golden")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tests := []struct {
 		expectedType    token.TokenType
@@ -145,34 +133,17 @@ func TestLexer2(t *testing.T) {
 		if tok.Type != tt.expectedType {
 			t.Errorf("tests[%d] - tokentype wrong. expected=%q, got=%q", i, tt.expectedType, tok.Type)
 		}
-		if tok.Literal != tt.expectedLiteral {
+		if !bytes.Equal(tok.Literal, []byte(tt.expectedLiteral)) {
 			t.Errorf("tests[%d] - literal wrong. expected=%q, got=%q", i, tt.expectedLiteral, tok.Literal)
 		}
 	}
 }
 
 func TestLexer3(t *testing.T) {
-	input := `# Heading1
-## Heading2
-- List1
-	- Nest List1_1
-		- Nest List1_1_1
-		- Nest List1_1_2
-	- Nest List1_2
-- List2
-- List3
-### Heading3
-- List1
-	- Nest List1_1
-		- Nest List1_1_1
-		- Nest List1_1_2
-	- Nest List1_2
-- List2
-- List3
-> Description1
-> Description2
-> Description3_1 > Description3_2
-`
+	input, err := ioutil.ReadFile("../testdata/3.md.golden")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tests := []struct {
 		expectedType    token.TokenType
@@ -278,7 +249,7 @@ func TestLexer3(t *testing.T) {
 		if tok.Type != tt.expectedType {
 			t.Errorf("tests[%d] - tokentype wrong. expected=%q, got=%q", i, tt.expectedType, tok.Type)
 		}
-		if tok.Literal != tt.expectedLiteral {
+		if !bytes.Equal(tok.Literal, []byte(tt.expectedLiteral)) {
 			t.Errorf("tests[%d] - literal wrong. expected=%q, got=%q", i, tt.expectedLiteral, tok.Literal)
 		}
 	}

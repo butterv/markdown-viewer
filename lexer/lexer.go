@@ -5,17 +5,17 @@ import (
 )
 
 type Lexer struct {
-	input        string // 入力
+	input        []byte // 入力
 	position     int    // 入力における現在の位置(現在の文字を指し示す)
 	readPosition int    // これから読み込む位置(現在の文字の次)
 	ch           byte   // 現在検査中の文字
 }
 
-func (l *Lexer) GetInput() string {
-	return l.input
-}
+//func (l *Lexer) GetInput() []byte {
+//	return l.input
+//}
 
-func New(input string) *Lexer {
+func New(input []byte) *Lexer {
 	l := &Lexer{
 		input: input,
 	}
@@ -27,6 +27,8 @@ func New(input string) *Lexer {
 func (l *Lexer) NextToken() token.Token {
 	// 1文字進める
 	l.readChar()
+
+	// 空白もタブも改行も、全てスキップせずに解析していく
 
 	var tok token.Token
 
@@ -83,7 +85,7 @@ func (l *Lexer) NextToken() token.Token {
 	//case ']':
 	//	tok = newToken(token.RBRACKET, l.ch)
 	case 0:
-		tok.Literal = ""
+		tok.Literal = nil
 		tok.Type = token.EOF
 	default:
 		tok.Literal = l.readString()
@@ -97,7 +99,7 @@ func newToken(tokenType token.TokenType, ch byte) token.Token {
 	// Tokenオブジェクトを初期化する
 	return token.Token{
 		Type:    tokenType,
-		Literal: string(ch),
+		Literal: []byte{ch},
 	}
 }
 
@@ -145,7 +147,7 @@ func isHeading(ch byte) bool {
 	return ch == '#'
 }
 
-func (l *Lexer) readHeading() (string, int) {
+func (l *Lexer) readHeading() ([]byte, int) {
 	position := l.position
 
 	cnt := 1
@@ -158,7 +160,7 @@ func (l *Lexer) readHeading() (string, int) {
 	return l.input[position : l.position+1], cnt
 }
 
-func (l *Lexer) readString() string {
+func (l *Lexer) readString() []byte {
 	position := l.position
 	for !isLineFeedCode(l.ch) && !isLineFeedCode(l.peekNextChar()) {
 		// 文字が途切れるまで読み込む
@@ -176,7 +178,7 @@ func isTab(ch byte) bool {
 	return ch == '\t'
 }
 
-func (l *Lexer) readTab() (string, int) {
+func (l *Lexer) readTab() ([]byte, int) {
 	position := l.position
 
 	cnt := 1
@@ -193,7 +195,7 @@ func isSpace(ch byte) bool {
 	return ch == ' '
 }
 
-func (l *Lexer) readSpace() (string, int) {
+func (l *Lexer) readSpace() ([]byte, int) {
 	position := l.position
 
 	cnt := 1
