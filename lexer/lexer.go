@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/istsh/markdown-viewer/token"
 )
@@ -22,9 +23,9 @@ type Lexer struct {
 	// それか、ある開始文字があったら、それがただの文字列なのか何かの開始文字なのかを判定するために、
 	// その行を必要な分peekしてもいいかもしれない。この方が都合よさそう。
 
-	startedBackQuoteArea bool // バッククォートエリアが開始されているか
-	startedItalic        bool // 斜体が開始されているか
-	startedBold          bool // 強調が開始されているか
+	startedBackQuoteArea   bool            // バッククォートエリアが開始されているか
+	startedAsteriskToken   token.TokenType // アスタリスクエリアが開始されているか
+	startedUnderScoreToken token.TokenType // アンダースコアエリアが開始されているか
 }
 
 //func (l *Lexer) GetInput() []byte {
@@ -38,8 +39,10 @@ func New(input []byte) *Lexer {
 	}
 
 	l := &Lexer{
-		input:        input,
-		justBeforeCh: '\n', // 直前の文字の初期値は改行コード
+		input:                  input,
+		justBeforeCh:           '\n', // 直前の文字の初期値は改行コード
+		startedAsteriskToken:   token.NONE,
+		startedUnderScoreToken: token.NONE,
 	}
 
 	//l.readChar()
@@ -56,15 +59,15 @@ func (l *Lexer) NextToken() token.Token {
 
 	switch l.ch {
 	case '#':
-		literal, cnt := l.readHeading()
+		literal := l.readHeading()
 		tok.Literal = literal
-		tok.Type = token.GetHeadingToken(cnt)
+		tok.Type = token.GetHeadingToken(len(literal))
 	case '-':
 		tok = newToken(token.HYPHEN, l.ch)
 	case '\t':
-		literal, cnt := l.readTab()
+		literal := l.readTab()
 		tok.Literal = literal
-		tok.Type = token.GetTabToken(cnt)
+		tok.Type = token.GetTabToken(len(literal))
 	case ' ':
 		//if l.lookBackChar() == '\n' {
 		//	literal, cnt := l.readSpace()
@@ -76,32 +79,151 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.SPACE, l.ch)
 	case '\n':
 		l.startedBackQuoteArea = false
-		l.startedItalic = false
-		l.startedBold = false
+		l.startedAsteriskToken = token.NONE
+		l.startedUnderScoreToken = token.NONE
 		tok = newToken(token.LINE_FEED_CODE_N, l.ch)
 	case '\r':
 		l.startedBackQuoteArea = false
-		l.startedItalic = false
-		l.startedBold = false
+		l.startedAsteriskToken = token.NONE
+		l.startedUnderScoreToken = token.NONE
 		tok = newToken(token.LINE_FEED_CODE_R, l.ch)
 	case '>':
 		if isLineFeedCode(l.justBeforeCh) {
 			tok = newToken(token.CITATION, l.ch)
+		} else {
+			tok.Literal = l.readString()
+			tok.Type = token.STRING
 		}
 	case '`':
-		switch {
-		case isLineFeedCode(l.justBeforeCh):
-			if l.existsByEndOfLine([]byte("` ")) {
-				l.startedBackQuoteArea = true
+		if l.startedBackQuoteArea {
+			// バッククォートエリアはすでに始まっている
+			nextCh := l.peekNextChar()
+			if isSpace(nextCh) || isLineFeedCode(nextCh) {
 				tok = newToken(token.BACK_QUOTE, l.ch)
 			} else {
-				l.startedBackQuoteArea = false
-				tok = newToken(token.STRING, l.ch)
+				tok.Literal = l.readString()
+				tok.Type = token.STRING
 			}
-		case isSpace(l.justBeforeCh):
+			l.startedBackQuoteArea = false
+		} else {
+			// バッククオートエリアを始めようとしている
+			switch {
+			case isLineFeedCode(l.justBeforeCh):
+				if l.existsByEndOfLine([]byte("` ")) {
+					l.startedBackQuoteArea = true
+					tok = newToken(token.BACK_QUOTE, l.ch)
+				} else {
+					l.startedBackQuoteArea = false
+					tok.Literal = l.readString()
+					tok.Type = token.STRING
+				}
+			case isSpace(l.justBeforeCh):
+				if l.existsByEndOfLine([]byte("` ")) {
+					l.startedBackQuoteArea = true
+					tok = newToken(token.BACK_QUOTE, l.ch)
+				} else {
+					l.startedBackQuoteArea = false
+					tok.Literal = l.readString()
+					tok.Type = token.STRING
+				}
+			default:
+				l.startedBackQuoteArea = false
+				tok.Literal = l.readString()
+				tok.Type = token.STRING
+			}
 		}
-
 	case '*':
+		if l.startedAsteriskToken != token.NONE {
+			// アスタリスクエリアはすでに始まっている
+			switch l.startedAsteriskToken {
+			case token.ASTERISK_ITALIC:
+				nextCh := l.peekNextChar()
+				if isSpace(nextCh) || isLineFeedCode(nextCh) {
+					tok = newToken(token.ASTERISK_ITALIC, l.ch)
+				} else {
+					tok.Literal = l.readString()
+					tok.Type = token.STRING
+				}
+				l.startedAsteriskToken = token.NONE
+			case token.ASTERISK_BOLD:
+				if isAsterisk(l.peekNextChar()) {
+					if isSpace(l.peek2ndOrderChar()) {
+						literal := l.readAsterisk()
+						tok.Literal = literal
+						tok.Type = token.ASTERISK_BOLD
+					} else {
+						tok.Literal = l.readString()
+						tok.Type = token.STRING
+					}
+				} else {
+					tok.Literal = l.readString()
+					tok.Type = token.STRING
+				}
+				l.startedAsteriskToken = token.NONE
+			case token.ASTERISK_ITALIC_BOLD:
+				if isAsterisk(l.peekNextChar()) {
+					if isAsterisk(l.peek2ndOrderChar()) {
+						if isSpace(l.peek3ndOrderChar()) {
+							literal := l.readAsterisk()
+							tok.Literal = literal
+							tok.Type = token.ASTERISK_ITALIC_BOLD
+						} else {
+							tok.Literal = l.readString()
+							tok.Type = token.STRING
+						}
+					} else {
+						tok.Literal = l.readString()
+						tok.Type = token.STRING
+					}
+				} else {
+					tok.Literal = l.readString()
+					tok.Type = token.STRING
+				}
+				l.startedAsteriskToken = token.NONE
+			}
+
+		} else {
+			// アスタリスクエリアを始めようとしている
+			literal := l.readAsterisk()
+			switch {
+			case isLineFeedCode(l.justBeforeCh):
+				tmpChs := literal
+				tmpChs = append(tmpChs, ' ')
+				if l.existsByEndOfLine(tmpChs) {
+					tokenType := token.GetAsteriskToken(len(literal))
+					l.startedAsteriskToken = tokenType
+					tok.Literal = literal
+					tok.Type = tokenType
+				} else {
+					l.startedAsteriskToken = token.NONE
+					tmpChs := literal
+					tmpChs = append(tmpChs, l.readString()...)
+					tok.Literal = tmpChs
+					tok.Type = token.STRING
+				}
+			case isSpace(l.justBeforeCh):
+				tmpChs := literal
+				tmpChs = append(tmpChs, ' ')
+				fmt.Printf("bbb: %s\n", tmpChs)
+				if l.existsByEndOfLine(tmpChs) {
+					fmt.Printf("どう？？: %s/n", literal)
+					tokenType := token.GetAsteriskToken(len(literal))
+					l.startedAsteriskToken = tokenType
+					tok.Literal = literal
+					tok.Type = tokenType
+				} else {
+					l.startedAsteriskToken = token.NONE
+					tmpChs := literal
+					tmpChs = append(tmpChs, l.readString()...)
+					tok.Literal = tmpChs
+					tok.Type = token.STRING
+				}
+			default:
+				l.startedAsteriskToken = token.NONE
+				tok.Literal = l.readString()
+				tok.Type = token.STRING
+			}
+		}
 
 		// TODO: 数値+ドット+空白のセットで判定
 	//	// TODO: to 3chars
@@ -174,14 +296,23 @@ func (l *Lexer) peekNextChar() byte {
 	}
 }
 
-//func (l *Lexer) peek2ndOrderChar() byte {
-//	// 次の次の文字を覗き見る
-//	if l.readPosition+1 >= len(l.input) {
-//		return 0
-//	} else {
-//		return l.input[l.readPosition+1]
-//	}
-//}
+func (l *Lexer) peek2ndOrderChar() byte {
+	// 次の次の文字を覗き見る
+	if l.readPosition+1 >= len(l.input) {
+		return 0
+	} else {
+		return l.input[l.readPosition+1]
+	}
+}
+
+func (l *Lexer) peek3ndOrderChar() byte {
+	// 次の次の次の文字を覗き見る
+	if l.readPosition+2 >= len(l.input) {
+		return 0
+	} else {
+		return l.input[l.readPosition+2]
+	}
+}
 
 func (l *Lexer) existsByEndOfLine(chs []byte) bool {
 	// 現在の位置から次の改行コードでの文字を確認するだけなので、readCharは実行しない
@@ -217,17 +348,20 @@ func isHeading(ch byte) bool {
 	return ch == '#'
 }
 
-func (l *Lexer) readHeading() ([]byte, int) {
+func (l *Lexer) readHeading() []byte {
 	position := l.position
 
-	cnt := 1
-	for isHeading(l.ch) && isHeading(l.peekNextChar()) {
+	for {
+		nextCh := l.peekNextChar()
+		if !isHeading(nextCh) {
+			break
+		}
 		// 文字が途切れるまで読み込む
 		l.readChar()
-		cnt++
 	}
+
 	// positionから、readCharで進んだところまで抽出
-	return l.input[position : l.position+1], cnt
+	return l.input[position : l.position+1]
 }
 
 func (l *Lexer) readString() []byte {
@@ -236,10 +370,29 @@ func (l *Lexer) readString() []byte {
 	// 次の両方を満たす場合、文字列と判断して読み進める
 	// 1. 次の文字が改行コードではない
 	// 2. 現在の文字が空白でない
-	for !isSpace(l.ch) && !isLineFeedCode(l.peekNextChar()) {
+	for {
+		nextCh := l.peekNextChar()
+		var breakFlg bool
+		switch {
+		case isSpace(nextCh), isLineFeedCode(nextCh):
+			breakFlg = true
+		case isBackQuote(nextCh):
+			peeked2ndOrderCh := l.peek2ndOrderChar()
+			if isSpace(peeked2ndOrderCh) || isLineFeedCode(peeked2ndOrderCh) {
+				breakFlg = true
+			}
+			//case isAsterisk(nextCh):
+			//case isUnderScore(nextCh):
+		}
+
+		if breakFlg {
+			break
+		}
+
 		// 文字が途切れるまで読み込む
 		l.readChar()
 	}
+
 	// positionから、readCharで進んだところまで抽出
 	return l.input[position : l.position+1]
 }
@@ -252,37 +405,84 @@ func isTab(ch byte) bool {
 	return ch == '\t'
 }
 
-func (l *Lexer) readTab() ([]byte, int) {
+func (l *Lexer) readTab() []byte {
 	position := l.position
 
-	cnt := 1
-	for isTab(l.ch) && isTab(l.peekNextChar()) {
+	for {
+		nextCh := l.peekNextChar()
+		if !isTab(nextCh) {
+			break
+		}
 		// 文字が途切れるまで読み込む
 		l.readChar()
-		cnt++
 	}
+
 	// positionから、readCharで進んだところまで抽出
-	return l.input[position : l.position+1], cnt
+	return l.input[position : l.position+1]
 }
 
 func isSpace(ch byte) bool {
 	return ch == ' '
 }
 
-func (l *Lexer) readSpace() ([]byte, int) {
+func isBackQuote(ch byte) bool {
+	return ch == '`'
+}
+
+func isAsterisk(ch byte) bool {
+	return ch == '*'
+}
+
+func (l *Lexer) readAsterisk() []byte {
 	position := l.position
 
-	cnt := 1
-	for isSpace(l.ch) && isSpace(l.peekNextChar()) && cnt <= 4 {
+	for {
+		nextCh := l.peekNextChar()
+		if !isAsterisk(nextCh) {
+			break
+		}
 		// 文字が途切れるまで読み込む
 		l.readChar()
-		cnt++
 	}
+
 	// positionから、readCharで進んだところまで抽出
-	return l.input[position : l.position+1], cnt
+	return l.input[position : l.position+1]
 }
 
-func isDigit(ch byte) bool {
-	// 数値
-	return '0' <= ch && ch <= '9'
+func isUnderScore(ch byte) bool {
+	return ch == '_'
 }
+
+func (l *Lexer) readUnderScore() []byte {
+	position := l.position
+
+	for {
+		nextCh := l.peekNextChar()
+		if !isUnderScore(nextCh) {
+			break
+		}
+		// 文字が途切れるまで読み込む
+		l.readChar()
+	}
+
+	// positionから、readCharで進んだところまで抽出
+	return l.input[position : l.position+1]
+}
+
+//func (l *Lexer) readSpace() ([]byte, int) {
+//	position := l.position
+//
+//	cnt := 1
+//	for isSpace(l.ch) && isSpace(l.peekNextChar()) && cnt <= 4 {
+//		// 文字が途切れるまで読み込む
+//		l.readChar()
+//		cnt++
+//	}
+//	// positionから、readCharで進んだところまで抽出
+//	return l.input[position : l.position+1], cnt
+//}
+
+//func isDigit(ch byte) bool {
+//	// 数値
+//	return '0' <= ch && ch <= '9'
+//}

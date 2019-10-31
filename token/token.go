@@ -4,8 +4,10 @@ type TokenType string
 
 // 各文字列が何を意味しているのかを対応づける為に、定数を設けている。
 const (
-	ILLEGAL = "ILLEGAL" // 解析に失敗した場合に設定するTokenType
-	EOF     = "EOF"     // コードの終了
+	NONE = ""
+
+	// ILLEGAL = "ILLEGAL" // 解析に失敗した場合に設定するTokenType
+	EOF = "EOF" // コードの終了
 
 	//INT    = "INT"
 	STRING = "STRING" // 文字列
@@ -31,7 +33,13 @@ const (
 	CITATION = ">"
 	HYPHEN   = "-"
 
-	BACK_QUOTE = "`"
+	BACK_QUOTE              = "`"
+	ASTERISK_ITALIC         = "*"
+	ASTERISK_BOLD           = "**"
+	ASTERISK_ITALIC_BOLD    = "***"
+	UNDER_SCORE_ITALIC      = "_"
+	UNDER_SCORE_BOLD        = "__"
+	UNDER_SCORE_ITALIC_BOLD = "___"
 
 	//DOT         = "."
 	//ASTERISK    = "*"
@@ -96,7 +104,8 @@ func GetHeadingToken(cnt int) TokenType {
 	case 6:
 		return HEADING6
 	default:
-		return ILLEGAL
+		//return ILLEGAL
+		return STRING
 	}
 }
 
@@ -109,6 +118,35 @@ func GetTabToken(cnt int) TokenType {
 	case 3:
 		return TAB3
 	default:
-		return ILLEGAL
+		//return ILLEGAL
+		return STRING
+	}
+}
+
+func GetAsteriskToken(cnt int) TokenType {
+	switch cnt {
+	case 1:
+		return ASTERISK_ITALIC
+	case 2:
+		return ASTERISK_BOLD
+	case 3:
+		return ASTERISK_ITALIC_BOLD
+	default:
+		//return ILLEGAL
+		return STRING
+	}
+}
+
+func GetUnderScoreToken(cnt int) TokenType {
+	switch cnt {
+	case 1:
+		return UNDER_SCORE_ITALIC
+	case 2:
+		return UNDER_SCORE_BOLD
+	case 3:
+		return UNDER_SCORE_ITALIC_BOLD
+	default:
+		//return ILLEGAL
+		return STRING
 	}
 }
