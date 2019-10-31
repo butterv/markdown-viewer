@@ -30,8 +30,9 @@ const (
 	LINE_FEED_CODE_N = "\n"
 	LINE_FEED_CODE_R = "\r"
 
-	CITATION = ">"
-	HYPHEN   = "-"
+	CITATION1 = ">"
+	CITATION2 = ">>"
+	HYPHEN    = "-"
 
 	BACK_QUOTE              = "`"
 	ASTERISK_ITALIC         = "*"
@@ -145,6 +146,18 @@ func GetUnderScoreToken(cnt int) TokenType {
 		return UNDER_SCORE_BOLD
 	case 3:
 		return UNDER_SCORE_ITALIC_BOLD
+	default:
+		//return ILLEGAL
+		return STRING
+	}
+}
+
+func GetCitationToken(cnt int) TokenType {
+	switch cnt {
+	case 1:
+		return CITATION1
+	case 2:
+		return CITATION2
 	default:
 		//return ILLEGAL
 		return STRING

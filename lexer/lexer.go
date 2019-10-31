@@ -90,7 +90,9 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.LINE_FEED_CODE_R, l.ch)
 	case '>':
 		if isLineFeedCode(l.justBeforeCh) {
-			tok = newToken(token.CITATION, l.ch)
+			literal := l.readCitation()
+			tok.Literal = literal
+			tok.Type = token.GetCitationToken(len(literal))
 		} else {
 			tok.Literal = l.readString()
 			tok.Type = token.STRING
@@ -699,6 +701,26 @@ func (l *Lexer) readUnderScore() []byte {
 	for {
 		nextCh := l.peekNextChar()
 		if !isUnderScore(nextCh) {
+			break
+		}
+		// 文字が途切れるまで読み込む
+		l.readChar()
+	}
+
+	// positionから、readCharで進んだところまで抽出
+	return l.input[position : l.position+1]
+}
+
+func isCitation(ch byte) bool {
+	return ch == '>'
+}
+
+func (l *Lexer) readCitation() []byte {
+	position := l.position
+
+	for {
+		nextCh := l.peekNextChar()
+		if !isCitation(nextCh) {
 			break
 		}
 		// 文字が途切れるまで読み込む
