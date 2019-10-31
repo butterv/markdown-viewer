@@ -6,17 +6,3 @@ Description4_1 **bold area** Description4_2
 Description5_1 __bold area__ Description5_2
 Description4_1 ***italic & bold area*** Description4_2
 Description5_1 ___italic & bold area___ Description5_2
-# Heading2
-- List1
-	- Nest List1_1
-		- Nest List1_1_1
-		- Nest List1_1_2
-	- Nest List1_2
-- List2
-- List3
-# Heading3
-> Description1
-> Description2
-> Description3_1 > Description3_2
-# Heading4
-
