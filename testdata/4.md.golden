@@ -1,3 +1,8 @@
 # Heading1
 Description1_1 `back quote area` Description1_2
 Description2_1 *italic area* Description2_2
+Description3_1 **bold area** Description3_2
+Description4_1 ***italic & bold area*** Description4_2
+*italic area*
+**bold area**
+***italic & bold area***

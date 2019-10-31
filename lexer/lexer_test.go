@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"bytes"
 	"io/ioutil"
 	"testing"
 
@@ -23,13 +24,13 @@ func compareGotAndWant(t *testing.T, goldenPath string, tests []expected) {
 	for i, tt := range tests {
 		tok := l.NextToken()
 
-		t.Logf("tests[%d] - got=%q, want=%q", i, tok.Literal, tt.expectedLiteral)
-		//if tok.Type != tt.expectedType {
-		//	t.Errorf("tests[%d] - tokentype wrong. expected=%q, got=%q", i, tt.expectedType, tok.Type)
-		//}
-		//if !bytes.Equal(tok.Literal, []byte(tt.expectedLiteral)) {
-		//	t.Errorf("tests[%d] - literal wrong. expected=%q, got=%q", i, tt.expectedLiteral, tok.Literal)
-		//}
+		//t.Logf("tests[%d] - got=%q(%s), want=%q(%s)", i, tok.Literal, tok.Type, tt.expectedLiteral, tt.expectedType)
+		if tok.Type != tt.expectedType {
+			t.Errorf("tests[%d] - tokentype wrong. expected=%q, got=%q", i, tt.expectedType, tok.Type)
+		}
+		if !bytes.Equal(tok.Literal, []byte(tt.expectedLiteral)) {
+			t.Errorf("tests[%d] - literal wrong. expected=%q, got=%q", i, tt.expectedLiteral, tok.Literal)
+		}
 	}
 }
 
@@ -268,8 +269,134 @@ func TestLexer4(t *testing.T) {
 		{token.SPACE, " "},
 		{token.STRING, "Description2_2"},
 		{token.LINE_FEED_CODE_N, "\n"},
+		{token.STRING, "Description3_1"},
+		{token.SPACE, " "},
+		{token.ASTERISK_BOLD, "**"},
+		{token.STRING, "bold"},
+		{token.SPACE, " "},
+		{token.STRING, "area"},
+		{token.ASTERISK_BOLD, "**"},
+		{token.SPACE, " "},
+		{token.STRING, "Description3_2"},
+		{token.LINE_FEED_CODE_N, "\n"},
+		{token.STRING, "Description4_1"},
+		{token.SPACE, " "},
+		{token.ASTERISK_ITALIC_BOLD, "***"},
+		{token.STRING, "italic"},
+		{token.SPACE, " "},
+		{token.STRING, "&"},
+		{token.SPACE, " "},
+		{token.STRING, "bold"},
+		{token.SPACE, " "},
+		{token.STRING, "area"},
+		{token.ASTERISK_ITALIC_BOLD, "***"},
+		{token.SPACE, " "},
+		{token.STRING, "Description4_2"},
+		{token.LINE_FEED_CODE_N, "\n"},
+		{token.ASTERISK_ITALIC, "*"},
+		{token.STRING, "italic"},
+		{token.SPACE, " "},
+		{token.STRING, "area"},
+		{token.ASTERISK_ITALIC, "*"},
+		{token.LINE_FEED_CODE_N, "\n"},
+		{token.ASTERISK_BOLD, "**"},
+		{token.STRING, "bold"},
+		{token.SPACE, " "},
+		{token.STRING, "area"},
+		{token.ASTERISK_BOLD, "**"},
+		{token.LINE_FEED_CODE_N, "\n"},
+		{token.ASTERISK_ITALIC_BOLD, "***"},
+		{token.STRING, "italic"},
+		{token.SPACE, " "},
+		{token.STRING, "&"},
+		{token.SPACE, " "},
+		{token.STRING, "bold"},
+		{token.SPACE, " "},
+		{token.STRING, "area"},
+		{token.ASTERISK_ITALIC_BOLD, "***"},
+		{token.LINE_FEED_CODE_N, "\n"},
 		{token.EOF, ""},
 	}
 
 	compareGotAndWant(t, "../testdata/4.md.golden", tests)
+}
+
+func TestLexer5(t *testing.T) {
+	tests := []expected{
+		{token.HEADING1, "#"},
+		{token.SPACE, " "},
+		{token.STRING, "Heading1"},
+		{token.LINE_FEED_CODE_N, "\n"},
+		{token.STRING, "Description1_1"},
+		{token.SPACE, " "},
+		{token.BACK_QUOTE, "`"},
+		{token.STRING, "back"},
+		{token.SPACE, " "},
+		{token.STRING, "quote"},
+		{token.SPACE, " "},
+		{token.STRING, "area"},
+		{token.BACK_QUOTE, "`"},
+		{token.SPACE, " "},
+		{token.STRING, "Description1_2"},
+		{token.LINE_FEED_CODE_N, "\n"},
+		{token.STRING, "Description2_1"},
+		{token.SPACE, " "},
+		{token.UNDER_SCORE_ITALIC, "_"},
+		{token.STRING, "italic"},
+		{token.SPACE, " "},
+		{token.STRING, "area"},
+		{token.UNDER_SCORE_ITALIC, "_"},
+		{token.SPACE, " "},
+		{token.STRING, "Description2_2"},
+		{token.LINE_FEED_CODE_N, "\n"},
+		{token.STRING, "Description3_1"},
+		{token.SPACE, " "},
+		{token.UNDER_SCORE_BOLD, "__"},
+		{token.STRING, "bold"},
+		{token.SPACE, " "},
+		{token.STRING, "area"},
+		{token.UNDER_SCORE_BOLD, "__"},
+		{token.SPACE, " "},
+		{token.STRING, "Description3_2"},
+		{token.LINE_FEED_CODE_N, "\n"},
+		{token.STRING, "Description4_1"},
+		{token.SPACE, " "},
+		{token.UNDER_SCORE_ITALIC_BOLD, "___"},
+		{token.STRING, "italic"},
+		{token.SPACE, " "},
+		{token.STRING, "&"},
+		{token.SPACE, " "},
+		{token.STRING, "bold"},
+		{token.SPACE, " "},
+		{token.STRING, "area"},
+		{token.UNDER_SCORE_ITALIC_BOLD, "___"},
+		{token.SPACE, " "},
+		{token.STRING, "Description4_2"},
+		{token.LINE_FEED_CODE_N, "\n"},
+		{token.UNDER_SCORE_ITALIC, "_"},
+		{token.STRING, "italic"},
+		{token.SPACE, " "},
+		{token.STRING, "area"},
+		{token.UNDER_SCORE_ITALIC, "_"},
+		{token.LINE_FEED_CODE_N, "\n"},
+		{token.UNDER_SCORE_BOLD, "__"},
+		{token.STRING, "bold"},
+		{token.SPACE, " "},
+		{token.STRING, "area"},
+		{token.UNDER_SCORE_BOLD, "__"},
+		{token.LINE_FEED_CODE_N, "\n"},
+		{token.UNDER_SCORE_ITALIC_BOLD, "___"},
+		{token.STRING, "italic"},
+		{token.SPACE, " "},
+		{token.STRING, "&"},
+		{token.SPACE, " "},
+		{token.STRING, "bold"},
+		{token.SPACE, " "},
+		{token.STRING, "area"},
+		{token.UNDER_SCORE_ITALIC_BOLD, "___"},
+		{token.LINE_FEED_CODE_N, "\n"},
+		{token.EOF, ""},
+	}
+
+	compareGotAndWant(t, "../testdata/5.md.golden", tests)
 }
