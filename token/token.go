@@ -13,12 +13,22 @@ const (
 	STRING = "STRING" // 文字列
 
 	// 識別子
-	HEADING1 = "#"
-	HEADING2 = "##"
-	HEADING3 = "###"
-	HEADING4 = "####"
-	HEADING5 = "#####"
-	HEADING6 = "######"
+	HEADING1 = ""
+	HEADING2 = ""
+	HEADING3 = ""
+	HEADING4 = ""
+	HEADING5 = ""
+	HEADING6 = ""
+
+	UNORDERED_LIST_BEGIN  = ""
+	UNORDERED_LIST_FINISH = ""
+	ORDERED_LIST_BEGIN    = ""
+	ORDERED_LIST_FINISH   = ""
+	LIST_BEGIN            = ""
+	LIST_FINISH           = ""
+
+	BACK_QUOTE_BEGIN  = ""
+	BACK_QUOTE_FINISH = ""
 
 	TAB1 = "\t"
 	TAB2 = "\t\t"
@@ -27,14 +37,12 @@ const (
 	SPACE = " "
 	//SPACE4 = "    "
 
-	LINE_FEED_CODE_N = "\n"
-	LINE_FEED_CODE_R = "\r"
+	LINE_FEED_CODE = ""
 
 	CITATION1 = ">"
 	CITATION2 = ">>"
 	HYPHEN    = "-"
 
-	BACK_QUOTE              = "`"
 	ASTERISK_ITALIC         = "*"
 	ASTERISK_BOLD           = "**"
 	ASTERISK_ITALIC_BOLD    = "***"
@@ -42,16 +50,20 @@ const (
 	UNDER_SCORE_BOLD        = "__"
 	UNDER_SCORE_ITALIC_BOLD = "___"
 
+	ASTERISK_HORIZON    = "***"
+	HYPHEN_HORIZON      = "---"
+	UNDER_SCORE_HORIZON = "___"
+
 	//DOT         = "."
 	//ASTERISK    = "*"
 	//UNDER_SCORE = "_"
 	//
 	//PLUS = "+"
 	//
-	//LPAREN   = "("
-	//RPAREN   = ")"
-	//LBRACKET = "["
-	//RBRACKET = "]"
+	LPAREN   = "("
+	RPAREN   = ")"
+	LBRACKET = "["
+	RBRACKET = "]"
 	//
 	//// ここから下は不要かも
 	//ASSIGN = "="

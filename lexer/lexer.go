@@ -60,15 +60,28 @@ func (l *Lexer) NextToken() token.Token {
 
 	switch l.ch {
 	case '#':
-		literal := l.readHeading()
-		tok.Literal = literal
-		tok.Type = token.GetHeadingToken(len(literal))
+		if isLineFeedCode(l.justBeforeCh) {
+			literal := l.readHeading()
+			nextCh := l.peekNextChar()
+			if isSpace(nextCh) {
+				tok = newToken(token.GetHeadingToken(len(literal)))
+				// 空白をスキップする
+				l.readChar()
+			} else {
+				l.readChar()
+				var tmpChs []byte
+				tmpChs = append(tmpChs, literal...)
+				tmpChs = append(tmpChs, l.readString()...)
+				tok = newTokenWithLiteral(token.STRING, tmpChs)
+			}
+		} else {
+			tok = newTokenWithLiteral(token.STRING, l.readString())
+		}
 	case '-':
-		tok = newToken(token.HYPHEN, l.ch)
+		tok = newToken(token.HYPHEN)
 	case '\t':
 		literal := l.readTab()
-		tok.Literal = literal
-		tok.Type = token.GetTabToken(len(literal))
+		tok = newToken(token.GetTabToken(len(literal)))
 	case ' ':
 		//if l.lookBackChar() == '\n' {
 		//	literal, cnt := l.readSpace()
@@ -77,32 +90,25 @@ func (l *Lexer) NextToken() token.Token {
 		//} else {
 		//	tok = newToken(token.SPACE1, l.ch)
 		//}
-		tok = newToken(token.SPACE, l.ch)
-	case '\n':
+		tok = newToken(token.SPACE)
+	case '\n', '\r':
 		l.startedBackQuoteArea = false
 		l.startedAsteriskToken = token.NONE
 		l.startedUnderScoreToken = token.NONE
-		tok = newToken(token.LINE_FEED_CODE_N, l.ch)
-	case '\r':
-		l.startedBackQuoteArea = false
-		l.startedAsteriskToken = token.NONE
-		l.startedUnderScoreToken = token.NONE
-		tok = newToken(token.LINE_FEED_CODE_R, l.ch)
+		tok = newToken(token.LINE_FEED_CODE)
 	case '>':
 		if isLineFeedCode(l.justBeforeCh) {
 			literal := l.readCitation()
-			tok.Literal = literal
-			tok.Type = token.GetCitationToken(len(literal))
+			tok = newToken(token.GetCitationToken(len(literal)))
 		} else {
-			tok.Literal = l.readString()
-			tok.Type = token.STRING
+			tok = newTokenWithLiteral(token.STRING, l.readString())
 		}
 	case '`':
 		if l.startedBackQuoteArea {
 			// バッククォートエリアはすでに始まっている
 			nextCh := l.peekNextChar()
 			if isSpace(nextCh) || isLineFeedCode(nextCh) {
-				tok = newToken(token.BACK_QUOTE, l.ch)
+				tok = newToken(token.BACK_QUOTE_FINISH)
 			} else {
 				tok.Literal = l.readString()
 				tok.Type = token.STRING
@@ -251,7 +257,8 @@ func (l *Lexer) NextToken() token.Token {
 						tok.Type = tokenType
 					} else {
 						l.startedAsteriskToken = token.NONE
-						tmpChs := literal
+						var tmpChs []byte
+						tmpChs = append(tmpChs, literal...)
 						tmpChs = append(tmpChs, l.readString()...)
 						tok.Literal = tmpChs
 						tok.Type = token.STRING
@@ -351,7 +358,8 @@ func (l *Lexer) NextToken() token.Token {
 						tok.Type = tokenType
 					} else {
 						l.startedUnderScoreToken = token.NONE
-						tmpChs := literal
+						var tmpChs []byte
+						tmpChs = append(tmpChs, literal...)
 						tmpChs = append(tmpChs, l.readString()...)
 						tok.Literal = tmpChs
 						tok.Type = token.STRING
@@ -378,7 +386,8 @@ func (l *Lexer) NextToken() token.Token {
 						tok.Type = tokenType
 					} else {
 						l.startedUnderScoreToken = token.NONE
-						tmpChs := literal
+						var tmpChs []byte
+						tmpChs = append(tmpChs, literal...)
 						tmpChs = append(tmpChs, l.readString()...)
 						tok.Literal = tmpChs
 						tok.Type = token.STRING
@@ -425,11 +434,18 @@ func (l *Lexer) NextToken() token.Token {
 	return tok
 }
 
-func newToken(tokenType token.TokenType, ch byte) token.Token {
+func newToken(tokenType token.TokenType) token.Token {
+	// Tokenオブジェクトを初期化する
+	return token.Token{
+		Type: tokenType,
+	}
+}
+
+func newTokenWithLiteral(tokenType token.TokenType, chs []byte) token.Token {
 	// Tokenオブジェクトを初期化する
 	return token.Token{
 		Type:    tokenType,
-		Literal: []byte{ch},
+		Literal: chs,
 	}
 }
 
@@ -534,7 +550,7 @@ func (l *Lexer) threeBeforeChar() byte {
 	return l.input[l.readPosition-4]
 }
 
-func isHeading(ch byte) bool {
+func isSharp(ch byte) bool {
 	return ch == '#'
 }
 
@@ -543,7 +559,7 @@ func (l *Lexer) readHeading() []byte {
 
 	for {
 		nextCh := l.peekNextChar()
-		if !isHeading(nextCh) {
+		if !isSharp(nextCh) {
 			break
 		}
 		// 文字が途切れるまで読み込む
