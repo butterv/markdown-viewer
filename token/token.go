@@ -1,58 +1,78 @@
 package token
 
-type TokenType string
+type TokenType uint
 
 // 各文字列が何を意味しているのかを対応づける為に、定数を設けている。
 const (
-	NONE = ""
+	NONE = iota
 
 	// ILLEGAL = "ILLEGAL" // 解析に失敗した場合に設定するTokenType
-	EOF = "EOF" // コードの終了
+	EOF // コードの終了
 
 	//INT    = "INT"
-	STRING = "STRING" // 文字列
+	STRING // 文字列
 
 	// 識別子
-	HEADING1 = ""
-	HEADING2 = ""
-	HEADING3 = ""
-	HEADING4 = ""
-	HEADING5 = ""
-	HEADING6 = ""
+	HEADING1
+	HEADING2
+	HEADING3
+	HEADING4
+	HEADING5
+	HEADING6
 
-	UNORDERED_LIST_BEGIN  = ""
-	UNORDERED_LIST_FINISH = ""
-	ORDERED_LIST_BEGIN    = ""
-	ORDERED_LIST_FINISH   = ""
-	LIST_BEGIN            = ""
-	LIST_FINISH           = ""
+	UNORDERED_LIST_BEGIN
+	UNORDERED_LIST_FINISH
+	ORDERED_LIST_BEGIN
+	ORDERED_LIST_FINISH
+	LIST_BEGIN
+	LIST_FINISH
 
-	BACK_QUOTE_BEGIN  = ""
-	BACK_QUOTE_FINISH = ""
+	BACK_QUOTE_BEGIN
+	BACK_QUOTE_FINISH
 
-	TAB1 = "\t"
-	TAB2 = "\t\t"
-	TAB3 = "\t\t\t"
+	ASTERISK_ITALIC_BEGIN
+	ASTERISK_ITALIC_FINISH
+	ASTERISK_BOLD_BEGIN
+	ASTERISK_BOLD_FINISH
+	ASTERISK_ITALIC_BOLD_BEGIN
+	ASTERISK_ITALIC_BOLD_FINISH
 
-	SPACE = " "
+	UNDER_SCORE_ITALIC_BEGIN
+	UNDER_SCORE_ITALIC_FINISH
+	UNDER_SCORE_BOLD_BEGIN
+	UNDER_SCORE_BOLD_FINISH
+	UNDER_SCORE_ITALIC_BOLD_BEGIN
+	UNDER_SCORE_ITALIC_BOLD_FINISH
+
+	CITATION1
+	CITATION2
+
+	HORIZON
+
+	LINK_TEXT_BEGIN
+	LINK_TEXT_FINISH
+	LINK_BEGIN
+	LINK_FINISH
+
+	//
+
+	TAB1
+	TAB2
+	TAB3
+
+	SPACE
 	//SPACE4 = "    "
 
-	LINE_FEED_CODE = ""
+	LINE_FEED_CODE
 
-	CITATION1 = ">"
-	CITATION2 = ">>"
-	HYPHEN    = "-"
+	HYPHEN
 
-	ASTERISK_ITALIC         = "*"
-	ASTERISK_BOLD           = "**"
-	ASTERISK_ITALIC_BOLD    = "***"
-	UNDER_SCORE_ITALIC      = "_"
-	UNDER_SCORE_BOLD        = "__"
-	UNDER_SCORE_ITALIC_BOLD = "___"
-
-	ASTERISK_HORIZON    = "***"
-	HYPHEN_HORIZON      = "---"
-	UNDER_SCORE_HORIZON = "___"
+	//ASTERISK_ITALIC         = "*"
+	//ASTERISK_BOLD           = "**"
+	//ASTERISK_ITALIC_BOLD    = "***"
+	//UNDER_SCORE_ITALIC      = "_"
+	//UNDER_SCORE_BOLD        = "__"
+	//UNDER_SCORE_ITALIC_BOLD = "___"
 
 	//DOT         = "."
 	//ASTERISK    = "*"
@@ -60,10 +80,10 @@ const (
 	//
 	//PLUS = "+"
 	//
-	LPAREN   = "("
-	RPAREN   = ")"
-	LBRACKET = "["
-	RBRACKET = "]"
+	LPAREN
+	RPAREN
+	LBRACKET
+	RBRACKET
 	//
 	//// ここから下は不要かも
 	//ASSIGN = "="
@@ -139,11 +159,11 @@ func GetTabToken(cnt int) TokenType {
 func GetAsteriskToken(cnt int) TokenType {
 	switch cnt {
 	case 1:
-		return ASTERISK_ITALIC
+		return ASTERISK_ITALIC_BEGIN
 	case 2:
-		return ASTERISK_BOLD
+		return ASTERISK_BOLD_BEGIN
 	case 3:
-		return ASTERISK_ITALIC_BOLD
+		return ASTERISK_ITALIC_BOLD_BEGIN
 	default:
 		//return ILLEGAL
 		return STRING
@@ -153,11 +173,11 @@ func GetAsteriskToken(cnt int) TokenType {
 func GetUnderScoreToken(cnt int) TokenType {
 	switch cnt {
 	case 1:
-		return UNDER_SCORE_ITALIC
+		return UNDER_SCORE_ITALIC_BEGIN
 	case 2:
-		return UNDER_SCORE_BOLD
+		return UNDER_SCORE_BOLD_BEGIN
 	case 3:
-		return UNDER_SCORE_ITALIC_BOLD
+		return UNDER_SCORE_ITALIC_BOLD_BEGIN
 	default:
 		//return ILLEGAL
 		return STRING

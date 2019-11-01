@@ -67,6 +67,9 @@ func (l *Lexer) NextToken() token.Token {
 				tok = newToken(token.GetHeadingToken(len(literal)))
 				// 空白をスキップする
 				l.readChar()
+			} else if isLineFeedCode(nextCh) && len(literal) == 3 {
+				l.readChar()
+				tok = newToken(token.HORIZON)
 			} else {
 				l.readChar()
 				var tmpChs []byte
@@ -78,18 +81,27 @@ func (l *Lexer) NextToken() token.Token {
 			tok = newTokenWithLiteral(token.STRING, l.readString())
 		}
 	case '-':
-		tok = newToken(token.HYPHEN)
+		if isLineFeedCode(l.justBeforeCh) {
+			literal := l.readHyphen()
+			nextCh := l.peekNextChar()
+			if isLineFeedCode(nextCh) && len(literal) == 3 {
+				l.readChar()
+				tok = newToken(token.HORIZON)
+			} else {
+				l.readChar()
+				var tmpChs []byte
+				tmpChs = append(tmpChs, literal...)
+				tmpChs = append(tmpChs, l.readString()...)
+				tok = newTokenWithLiteral(token.STRING, tmpChs)
+			}
+		} else {
+			tok = newTokenWithLiteral(token.STRING, l.readString())
+		}
 	case '\t':
+		// TODO: Tabはいらないかも
 		literal := l.readTab()
 		tok = newToken(token.GetTabToken(len(literal)))
 	case ' ':
-		//if l.lookBackChar() == '\n' {
-		//	literal, cnt := l.readSpace()
-		//	tok.Literal = literal
-		//	tok.Type = token.GetSpaceToken(cnt)
-		//} else {
-		//	tok = newToken(token.SPACE1, l.ch)
-		//}
 		tok = newToken(token.SPACE)
 	case '\n', '\r':
 		l.startedBackQuoteArea = false
@@ -110,8 +122,7 @@ func (l *Lexer) NextToken() token.Token {
 			if isSpace(nextCh) || isLineFeedCode(nextCh) {
 				tok = newToken(token.BACK_QUOTE_FINISH)
 			} else {
-				tok.Literal = l.readString()
-				tok.Type = token.STRING
+				tok = newTokenWithLiteral(token.STRING, l.readString())
 			}
 			l.startedBackQuoteArea = false
 		} else {
@@ -120,75 +131,64 @@ func (l *Lexer) NextToken() token.Token {
 			case isLineFeedCode(l.justBeforeCh):
 				if l.existsByEndOfLine([]byte("` ")) {
 					l.startedBackQuoteArea = true
-					tok = newToken(token.BACK_QUOTE, l.ch)
+					tok = newToken(token.BACK_QUOTE_BEGIN)
 				} else {
 					l.startedBackQuoteArea = false
-					tok.Literal = l.readString()
-					tok.Type = token.STRING
+					tok = newTokenWithLiteral(token.STRING, l.readString())
 				}
 			case isSpace(l.justBeforeCh):
 				if l.existsByEndOfLine([]byte("` ")) {
 					l.startedBackQuoteArea = true
-					tok = newToken(token.BACK_QUOTE, l.ch)
+					tok = newToken(token.BACK_QUOTE_BEGIN)
 				} else {
 					l.startedBackQuoteArea = false
-					tok.Literal = l.readString()
-					tok.Type = token.STRING
+					tok = newTokenWithLiteral(token.STRING, l.readString())
 				}
 			default:
 				l.startedBackQuoteArea = false
-				tok.Literal = l.readString()
-				tok.Type = token.STRING
+				tok = newTokenWithLiteral(token.STRING, l.readString())
 			}
 		}
 	case '*':
 		if l.startedAsteriskToken != token.NONE {
 			// アスタリスクエリアはすでに始まっている
 			switch l.startedAsteriskToken {
-			case token.ASTERISK_ITALIC:
+			case token.ASTERISK_ITALIC_BEGIN:
 				nextCh := l.peekNextChar()
 				if isSpace(nextCh) || isLineFeedCode(nextCh) {
-					tok = newToken(token.ASTERISK_ITALIC, l.ch)
+					tok = newToken(token.ASTERISK_ITALIC_FINISH)
 				} else {
-					tok.Literal = l.readString()
-					tok.Type = token.STRING
+					tok = newTokenWithLiteral(token.STRING, l.readString())
 				}
 				l.startedAsteriskToken = token.NONE
-			case token.ASTERISK_BOLD:
+			case token.ASTERISK_BOLD_BEGIN:
 				if isAsterisk(l.peekNextChar()) {
 					peek2ndOrderChar := l.peek2ndOrderChar()
 					if isSpace(peek2ndOrderChar) || isLineFeedCode(peek2ndOrderChar) {
-						literal := l.readAsterisk()
-						tok.Literal = literal
-						tok.Type = token.ASTERISK_BOLD
+						l.readAsterisk()
+						tok = newToken(token.ASTERISK_BOLD_FINISH)
 					} else {
-						tok.Literal = l.readString()
-						tok.Type = token.STRING
+						tok = newTokenWithLiteral(token.STRING, l.readString())
 					}
 				} else {
-					tok.Literal = l.readString()
-					tok.Type = token.STRING
+					tok = newTokenWithLiteral(token.STRING, l.readString())
 				}
 				l.startedAsteriskToken = token.NONE
-			case token.ASTERISK_ITALIC_BOLD:
+			case token.ASTERISK_ITALIC_BOLD_BEGIN:
 				if isAsterisk(l.peekNextChar()) {
 					if isAsterisk(l.peek2ndOrderChar()) {
 						peek3ndOrderChar := l.peek3ndOrderChar()
 						if isSpace(peek3ndOrderChar) || isLineFeedCode(peek3ndOrderChar) {
-							literal := l.readAsterisk()
-							tok.Literal = literal
-							tok.Type = token.ASTERISK_ITALIC_BOLD
+							l.readAsterisk()
+							tok = newToken(token.ASTERISK_ITALIC_BOLD_FINISH)
 						} else {
-							tok.Literal = l.readString()
-							tok.Type = token.STRING
+							tok = newTokenWithLiteral(token.STRING, l.readString())
 						}
 					} else {
-						tok.Literal = l.readString()
-						tok.Type = token.STRING
+						tok = newTokenWithLiteral(token.STRING, l.readString())
 					}
 				} else {
-					tok.Literal = l.readString()
-					tok.Type = token.STRING
+					tok = newTokenWithLiteral(token.STRING, l.readString())
 				}
 				l.startedAsteriskToken = token.NONE
 			}
@@ -216,8 +216,7 @@ func (l *Lexer) NextToken() token.Token {
 				if l.existsByEndOfLine(tmpChs) {
 					tokenType := token.GetAsteriskToken(len(literal))
 					l.startedAsteriskToken = tokenType
-					tok.Literal = literal
-					tok.Type = tokenType
+					tok = newToken(tokenType)
 				} else {
 					tmpChs = nil
 					tmpChs = append(tmpChs, literal...)
@@ -226,14 +225,13 @@ func (l *Lexer) NextToken() token.Token {
 					if l.existsByEndOfLine(tmpChs) {
 						tokenType := token.GetAsteriskToken(len(literal))
 						l.startedAsteriskToken = tokenType
-						tok.Literal = literal
-						tok.Type = tokenType
+						tok = newToken(tokenType)
 					} else {
 						l.startedAsteriskToken = token.NONE
-						tmpChs := literal
+						var tmpChs []byte
+						tmpChs = append(tmpChs, literal...)
 						tmpChs = append(tmpChs, l.readString()...)
-						tok.Literal = tmpChs
-						tok.Type = token.STRING
+						tok = newTokenWithLiteral(token.STRING, tmpChs)
 					}
 				}
 			case isSpace(beforeCh):
@@ -243,8 +241,7 @@ func (l *Lexer) NextToken() token.Token {
 				if l.existsByEndOfLine(tmpChs) {
 					tokenType := token.GetAsteriskToken(len(literal))
 					l.startedAsteriskToken = tokenType
-					tok.Literal = literal
-					tok.Type = tokenType
+					tok = newToken(tokenType)
 				} else {
 					tmpChs = nil
 					tmpChs = append(tmpChs, literal...)
@@ -253,71 +250,60 @@ func (l *Lexer) NextToken() token.Token {
 					if l.existsByEndOfLine(tmpChs) {
 						tokenType := token.GetAsteriskToken(len(literal))
 						l.startedAsteriskToken = tokenType
-						tok.Literal = literal
-						tok.Type = tokenType
+						tok = newToken(tokenType)
 					} else {
 						l.startedAsteriskToken = token.NONE
 						var tmpChs []byte
 						tmpChs = append(tmpChs, literal...)
 						tmpChs = append(tmpChs, l.readString()...)
-						tok.Literal = tmpChs
-						tok.Type = token.STRING
+						tok = newTokenWithLiteral(token.STRING, tmpChs)
 					}
 				}
 			default:
 				l.startedAsteriskToken = token.NONE
-				tok.Literal = l.readString()
-				tok.Type = token.STRING
+				tok = newTokenWithLiteral(token.STRING, l.readString())
 			}
 		}
 	case '_':
 		if l.startedUnderScoreToken != token.NONE {
 			// アンダースコアはすでに始まっている
 			switch l.startedUnderScoreToken {
-			case token.UNDER_SCORE_ITALIC:
+			case token.UNDER_SCORE_ITALIC_BEGIN:
 				nextCh := l.peekNextChar()
 				if isSpace(nextCh) || isLineFeedCode(nextCh) {
-					tok = newToken(token.UNDER_SCORE_ITALIC, l.ch)
+					tok = newToken(token.UNDER_SCORE_ITALIC_FINISH)
 				} else {
-					tok.Literal = l.readString()
-					tok.Type = token.STRING
+					tok = newTokenWithLiteral(token.STRING, l.readString())
 				}
 				l.startedUnderScoreToken = token.NONE
-			case token.UNDER_SCORE_BOLD:
+			case token.UNDER_SCORE_BOLD_BEGIN:
 				if isUnderScore(l.peekNextChar()) {
 					peek2ndOrderChar := l.peek2ndOrderChar()
 					if isSpace(peek2ndOrderChar) || isLineFeedCode(peek2ndOrderChar) {
-						literal := l.readUnderScore()
-						tok.Literal = literal
-						tok.Type = token.UNDER_SCORE_BOLD
+						l.readUnderScore()
+						tok = newToken(token.UNDER_SCORE_BOLD_FINISH)
 					} else {
-						tok.Literal = l.readString()
-						tok.Type = token.STRING
+						tok = newTokenWithLiteral(token.STRING, l.readString())
 					}
 				} else {
-					tok.Literal = l.readString()
-					tok.Type = token.STRING
+					tok = newTokenWithLiteral(token.STRING, l.readString())
 				}
 				l.startedUnderScoreToken = token.NONE
-			case token.UNDER_SCORE_ITALIC_BOLD:
+			case token.UNDER_SCORE_ITALIC_BOLD_BEGIN:
 				if isUnderScore(l.peekNextChar()) {
 					if isUnderScore(l.peek2ndOrderChar()) {
 						peek3ndOrderChar := l.peek3ndOrderChar()
 						if isSpace(peek3ndOrderChar) || isLineFeedCode(peek3ndOrderChar) {
-							literal := l.readUnderScore()
-							tok.Literal = literal
-							tok.Type = token.UNDER_SCORE_ITALIC_BOLD
+							l.readUnderScore()
+							tok = newToken(token.UNDER_SCORE_ITALIC_BOLD_FINISH)
 						} else {
-							tok.Literal = l.readString()
-							tok.Type = token.STRING
+							tok = newTokenWithLiteral(token.STRING, l.readString())
 						}
 					} else {
-						tok.Literal = l.readString()
-						tok.Type = token.STRING
+						tok = newTokenWithLiteral(token.STRING, l.readString())
 					}
 				} else {
-					tok.Literal = l.readString()
-					tok.Type = token.STRING
+					tok = newTokenWithLiteral(token.STRING, l.readString())
 				}
 				l.startedUnderScoreToken = token.NONE
 			}
@@ -325,78 +311,75 @@ func (l *Lexer) NextToken() token.Token {
 		} else {
 			// アンダースコアエリアを始めようとしている
 			literal := l.readUnderScore()
+			if isLineFeedCode(l.justBeforeCh) && isLineFeedCode(l.peekNextChar()) && len(literal) == 3 {
+				l.readChar()
+				tok = newToken(token.HORIZON)
+			} else {
+				var beforeCh byte
+				switch len(literal) {
+				case 1:
+					beforeCh = l.lookBackChar()
+				case 2:
+					beforeCh = l.twoBeforeChar()
+				case 3:
+					beforeCh = l.threeBeforeChar()
+				}
 
-			var beforeCh byte
-			switch len(literal) {
-			case 1:
-				beforeCh = l.lookBackChar()
-			case 2:
-				beforeCh = l.twoBeforeChar()
-			case 3:
-				beforeCh = l.threeBeforeChar()
-			}
-
-			switch {
-			case isLineFeedCode(beforeCh):
-				var tmpChs []byte
-				tmpChs = append(tmpChs, literal...)
-				tmpChs = append(tmpChs, ' ')
-				if l.existsByEndOfLine(tmpChs) {
-					tokenType := token.GetUnderScoreToken(len(literal))
-					l.startedUnderScoreToken = tokenType
-					tok.Literal = literal
-					tok.Type = tokenType
-				} else {
-					tmpChs = nil
+				switch {
+				case isLineFeedCode(beforeCh):
+					var tmpChs []byte
 					tmpChs = append(tmpChs, literal...)
-					// TODO: \rも検証すべき
-					tmpChs = append(tmpChs, '\n')
+					tmpChs = append(tmpChs, ' ')
 					if l.existsByEndOfLine(tmpChs) {
 						tokenType := token.GetUnderScoreToken(len(literal))
 						l.startedUnderScoreToken = tokenType
-						tok.Literal = literal
-						tok.Type = tokenType
+						tok = newToken(tokenType)
 					} else {
-						l.startedUnderScoreToken = token.NONE
-						var tmpChs []byte
+						tmpChs = nil
 						tmpChs = append(tmpChs, literal...)
-						tmpChs = append(tmpChs, l.readString()...)
-						tok.Literal = tmpChs
-						tok.Type = token.STRING
+						// TODO: \rも検証すべき
+						tmpChs = append(tmpChs, '\n')
+						if l.existsByEndOfLine(tmpChs) {
+							tokenType := token.GetUnderScoreToken(len(literal))
+							l.startedUnderScoreToken = tokenType
+							tok = newToken(tokenType)
+						} else {
+							l.startedUnderScoreToken = token.NONE
+							var tmpChs []byte
+							tmpChs = append(tmpChs, literal...)
+							tmpChs = append(tmpChs, l.readString()...)
+							tok = newTokenWithLiteral(token.STRING, tmpChs)
+						}
 					}
-				}
-			case isSpace(beforeCh):
-				var tmpChs []byte
-				tmpChs = append(tmpChs, literal...)
-				tmpChs = append(tmpChs, ' ')
-				if l.existsByEndOfLine(tmpChs) {
-					tokenType := token.GetUnderScoreToken(len(literal))
-					l.startedUnderScoreToken = tokenType
-					tok.Literal = literal
-					tok.Type = tokenType
-				} else {
-					tmpChs = nil
+				case isSpace(beforeCh):
+					var tmpChs []byte
 					tmpChs = append(tmpChs, literal...)
-					// TODO: \rも検証すべき
-					tmpChs = append(tmpChs, '\n')
+					tmpChs = append(tmpChs, ' ')
 					if l.existsByEndOfLine(tmpChs) {
 						tokenType := token.GetUnderScoreToken(len(literal))
 						l.startedUnderScoreToken = tokenType
-						tok.Literal = literal
-						tok.Type = tokenType
+						tok = newToken(tokenType)
 					} else {
-						l.startedUnderScoreToken = token.NONE
-						var tmpChs []byte
+						tmpChs = nil
 						tmpChs = append(tmpChs, literal...)
-						tmpChs = append(tmpChs, l.readString()...)
-						tok.Literal = tmpChs
-						tok.Type = token.STRING
+						// TODO: \rも検証すべき
+						tmpChs = append(tmpChs, '\n')
+						if l.existsByEndOfLine(tmpChs) {
+							tokenType := token.GetUnderScoreToken(len(literal))
+							l.startedUnderScoreToken = tokenType
+							tok = newToken(tokenType)
+						} else {
+							l.startedUnderScoreToken = token.NONE
+							var tmpChs []byte
+							tmpChs = append(tmpChs, literal...)
+							tmpChs = append(tmpChs, l.readString()...)
+							tok = newTokenWithLiteral(token.STRING, tmpChs)
+						}
 					}
+				default:
+					l.startedUnderScoreToken = token.NONE
+					tok = newTokenWithLiteral(token.STRING, l.readString())
 				}
-			default:
-				l.startedUnderScoreToken = token.NONE
-				tok.Literal = l.readString()
-				tok.Type = token.STRING
 			}
 		}
 		// TODO: 数値+ドット+空白のセットで判定
@@ -424,11 +407,9 @@ func (l *Lexer) NextToken() token.Token {
 	//case ']':
 	//	tok = newToken(token.RBRACKET, l.ch)
 	case 0:
-		tok.Literal = nil
-		tok.Type = token.EOF
+		tok = newToken(token.EOF)
 	default:
-		tok.Literal = l.readString()
-		tok.Type = token.STRING
+		tok = newTokenWithLiteral(token.STRING, l.readString())
 	}
 
 	return tok
@@ -589,12 +570,12 @@ func (l *Lexer) readString() []byte {
 			}
 		case isAsterisk(nextCh):
 			switch l.startedAsteriskToken {
-			case token.ASTERISK_ITALIC:
+			case token.ASTERISK_ITALIC_BEGIN:
 				peeked2ndOrderCh := l.peek2ndOrderChar()
 				if isSpace(peeked2ndOrderCh) || isLineFeedCode(peeked2ndOrderCh) {
 					breakFlg = true
 				}
-			case token.ASTERISK_BOLD:
+			case token.ASTERISK_BOLD_BEGIN:
 				peeked2ndOrderCh := l.peek2ndOrderChar()
 				if isAsterisk(peeked2ndOrderCh) {
 					peeked3ndOrderCh := l.peek3ndOrderChar()
@@ -602,7 +583,7 @@ func (l *Lexer) readString() []byte {
 						breakFlg = true
 					}
 				}
-			case token.ASTERISK_ITALIC_BOLD:
+			case token.ASTERISK_ITALIC_BOLD_BEGIN:
 				peeked2ndOrderCh := l.peek2ndOrderChar()
 				if isAsterisk(peeked2ndOrderCh) {
 					peeked3ndOrderCh := l.peek3ndOrderChar()
@@ -616,12 +597,12 @@ func (l *Lexer) readString() []byte {
 			}
 		case isUnderScore(nextCh):
 			switch l.startedUnderScoreToken {
-			case token.UNDER_SCORE_ITALIC:
+			case token.UNDER_SCORE_ITALIC_BEGIN:
 				peeked2ndOrderCh := l.peek2ndOrderChar()
 				if isSpace(peeked2ndOrderCh) || isLineFeedCode(peeked2ndOrderCh) {
 					breakFlg = true
 				}
-			case token.UNDER_SCORE_BOLD:
+			case token.UNDER_SCORE_BOLD_BEGIN:
 				peeked2ndOrderCh := l.peek2ndOrderChar()
 				if isUnderScore(peeked2ndOrderCh) {
 					peeked3ndOrderCh := l.peek3ndOrderChar()
@@ -629,7 +610,7 @@ func (l *Lexer) readString() []byte {
 						breakFlg = true
 					}
 				}
-			case token.UNDER_SCORE_ITALIC_BOLD:
+			case token.UNDER_SCORE_ITALIC_BOLD_BEGIN:
 				peeked2ndOrderCh := l.peek2ndOrderChar()
 				if isUnderScore(peeked2ndOrderCh) {
 					peeked3ndOrderCh := l.peek3ndOrderChar()
@@ -737,6 +718,26 @@ func (l *Lexer) readCitation() []byte {
 	for {
 		nextCh := l.peekNextChar()
 		if !isCitation(nextCh) {
+			break
+		}
+		// 文字が途切れるまで読み込む
+		l.readChar()
+	}
+
+	// positionから、readCharで進んだところまで抽出
+	return l.input[position : l.position+1]
+}
+
+func isHyphen(ch byte) bool {
+	return ch == '-'
+}
+
+func (l *Lexer) readHyphen() []byte {
+	position := l.position
+
+	for {
+		nextCh := l.peekNextChar()
+		if !isHyphen(nextCh) {
 			break
 		}
 		// 文字が途切れるまで読み込む
