@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"bytes"
+	"regexp"
 
 	"github.com/istsh/markdown-viewer/token"
 )
@@ -382,6 +383,30 @@ func (l *Lexer) NextToken() token.Token {
 				}
 			}
 		}
+
+	case '[':
+		var chs []byte
+		po := l.position
+		chs = append(chs, l.ch)
+		var cnt int
+		for {
+			cnt++
+			ch := l.input[po+cnt]
+			if ch == '\n' {
+				break
+			}
+			chs = append(chs, ch)
+		}
+		r := regexp.MustCompile(`[*](https?://[\w/:%#\$&\?\(\)~\.=\+\-]+)`)
+		matchedChs := r.Find(chs)
+		if matchedChs != nil {
+
+		} else {
+			tok = newTokenWithLiteral(token.STRING, l.readString())
+		}
+	case ']':
+	case '(':
+	case ')':
 		// TODO: 数値+ドット+空白のセットで判定
 	//	// TODO: to 3chars
 	//	tok = newToken(token.MINUS, l.ch)
@@ -622,6 +647,7 @@ func (l *Lexer) readString() []byte {
 					}
 				}
 			}
+		case isLeftBracket(nextCh):
 		}
 
 		if breakFlg {
@@ -746,6 +772,10 @@ func (l *Lexer) readHyphen() []byte {
 
 	// positionから、readCharで進んだところまで抽出
 	return l.input[position : l.position+1]
+}
+
+func isLeftBracket(ch byte) bool {
+	return ch == '['
 }
 
 //func (l *Lexer) readSpace() ([]byte, int) {
