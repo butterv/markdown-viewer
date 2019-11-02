@@ -33,6 +33,11 @@ type Lexer struct {
 //}
 
 func New(input []byte) *Lexer {
+	// TODO:
+	// 1行全ての検証が終わるまでは未確定状態として検証を進めて、
+	// 改行コードがきたら確定する
+	// といいかも。
+
 	// 必ず最後は改行コードで終わらせたい
 	if !bytes.HasSuffix(input, []byte("\n")) {
 		input = append(input, '\n')
