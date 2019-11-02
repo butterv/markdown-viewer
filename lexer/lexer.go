@@ -7,13 +7,33 @@ import (
 	"github.com/istsh/markdown-viewer/token"
 )
 
+const (
+	SHARP            = '#'
+	HYPHEN           = '-'
+	TAB              = '\t'
+	SPACE            = ' '
+	LINE_FEED_CODE_N = '\n'
+	LINE_FEED_CODE_R = '\r'
+	GT               = '>'
+	BACK_QUOTE       = '`'
+	ASTERISK         = '*'
+	UNDER_SCORE      = '_'
+	LBRACKET         = "["
+	RBRACKET         = "]"
+	LPAREN           = "("
+	RPAREN           = ")"
+)
+
 type Lexer struct {
 	input []byte // 入力
 
-	position     int // 入力における現在の位置(現在の文字を指し示す)
-	readPosition int // これから読み込む位置(現在の文字の次)
+	incompleteChs []byte // まだ検証が完了していない
+	completedChs  []byte // 検証が完了した
 
-	ch           byte // 現在検査中の文字
+	currentPosition int // 入力における現在の位置(現在の文字を指し示す)
+	nextPosition    int // これから読み込む位置(現在の文字の次)
+
+	currentCh    byte // 現在検査中の文字
 	justBeforeCh byte // 直前の文字
 
 	// 判定待ちのpositionが合ってもいいかも
