@@ -84,7 +84,7 @@ func (l *Lexer) NextToken() token.Token {
 
 	// fmt.Printf("%q\n", l.startedAsteriskToken)
 
-	switch l.ch {
+	switch l.currentCh {
 	case '#':
 		if isLineFeedCode(l.justBeforeCh) {
 			literal := l.readHeading()
@@ -411,8 +411,8 @@ func (l *Lexer) NextToken() token.Token {
 
 	case '[':
 		var chs []byte
-		po := l.position
-		chs = append(chs, l.ch)
+		po := l.currentPosition
+		chs = append(chs, l.currentCh)
 		var cnt int
 		for {
 			cnt++
@@ -432,30 +432,7 @@ func (l *Lexer) NextToken() token.Token {
 	case ']':
 	case '(':
 	case ')':
-		// TODO: 数値+ドット+空白のセットで判定
-	//	// TODO: to 3chars
-	//	tok = newToken(token.MINUS, l.ch)
-	//case '>':
-	//	tok = newToken(token.GT, l.ch)
-	//case '.':
-	//	tok = newToken(token.DOT, l.ch)
-	//case '*':
-	//	// TODO: to 3chars
-	//	tok = newToken(token.ASTERISK, l.ch)
-	//case '_':
-	//	// TODO: to 3chars
-	//	tok = newToken(token.UNDER_SCORE, l.ch)
-	//case '+':
-	//	tok = newToken(token.PLUS, l.ch)
-	//
-	//case '(':
-	//	tok = newToken(token.LPAREN, l.ch)
-	//case ')':
-	//	tok = newToken(token.RPAREN, l.ch)
-	//case '[':
-	//	tok = newToken(token.LBRACKET, l.ch)
-	//case ']':
-	//	tok = newToken(token.RBRACKET, l.ch)
+
 	case 0:
 		tok = newToken(token.EOF)
 	default:
@@ -481,63 +458,63 @@ func newTokenWithLiteral(tokenType token.TokenType, chs []byte) token.Token {
 }
 
 func (l *Lexer) readChar() {
-	if l.position > 0 {
+	if l.currentPosition > 0 {
 		// 直前の文字をセット
-		l.justBeforeCh = l.ch
+		l.justBeforeCh = l.currentCh
 	}
 
 	// 次の文字が存在するか
-	if l.readPosition >= len(l.input) {
+	if l.nextPosition >= len(l.input) {
 		// 次の文字は存在しない(まだ何も読み込んでいない or ファイルの終わり)
-		l.ch = 0
+		l.currentCh = 0
 	} else {
 		// 次の文字をセット
-		l.ch = l.input[l.readPosition]
+		l.currentCh = l.input[l.nextPosition]
 	}
 	// 数値を1つ進める
-	l.position = l.readPosition
-	l.readPosition += 1
+	l.currentPosition = l.nextPosition
+	l.nextPosition += 1
 }
 
 func (l *Lexer) peekNextChar() byte {
 	// 次の文字を覗き見る
-	if l.readPosition >= len(l.input) {
+	if l.nextPosition >= len(l.input) {
 		return 0
 	} else {
-		return l.input[l.readPosition]
+		return l.input[l.nextPosition]
 	}
 }
 
 func (l *Lexer) peek2ndOrderChar() byte {
 	// 次の次の文字を覗き見る
-	if l.readPosition+1 >= len(l.input) {
+	if l.nextPosition+1 >= len(l.input) {
 		return 0
 	} else {
-		return l.input[l.readPosition+1]
+		return l.input[l.nextPosition+1]
 	}
 }
 
 func (l *Lexer) peek3ndOrderChar() byte {
 	// 次の次の次の文字を覗き見る
-	if l.readPosition+2 >= len(l.input) {
+	if l.nextPosition+2 >= len(l.input) {
 		return 0
 	} else {
-		return l.input[l.readPosition+2]
+		return l.input[l.nextPosition+2]
 	}
 }
 
 func (l *Lexer) peek4ndOrderChar() byte {
 	// 次の次の次の次の文字を覗き見る
-	if l.readPosition+3 >= len(l.input) {
+	if l.nextPosition+3 >= len(l.input) {
 		return 0
 	} else {
-		return l.input[l.readPosition+3]
+		return l.input[l.nextPosition+3]
 	}
 }
 
 func (l *Lexer) existsByEndOfLine(chs []byte) bool {
 	// 現在の位置から次の改行コードでの文字を確認するだけなので、readCharは実行しない
-	position := l.position
+	position := l.currentPosition
 
 	var tmp []byte
 	for {
@@ -559,26 +536,26 @@ func (l *Lexer) existsByEndOfLine(chs []byte) bool {
 
 func (l *Lexer) lookBackChar() byte {
 	// 直前の文字を見る
-	if l.readPosition < 2 {
+	if l.nextPosition < 2 {
 		return 0
 	}
-	return l.input[l.readPosition-2]
+	return l.input[l.nextPosition-2]
 }
 
 func (l *Lexer) twoBeforeChar() byte {
 	// 2つ前の文字を見る
-	if l.readPosition < 3 {
+	if l.nextPosition < 3 {
 		return 0
 	}
-	return l.input[l.readPosition-3]
+	return l.input[l.nextPosition-3]
 }
 
 func (l *Lexer) threeBeforeChar() byte {
 	// 3つ前の文字を見る
-	if l.readPosition < 4 {
+	if l.nextPosition < 4 {
 		return 0
 	}
-	return l.input[l.readPosition-4]
+	return l.input[l.nextPosition-4]
 }
 
 func isSharp(ch byte) bool {
@@ -586,7 +563,7 @@ func isSharp(ch byte) bool {
 }
 
 func (l *Lexer) readHeading() []byte {
-	position := l.position
+	position := l.currentPosition
 
 	for {
 		nextCh := l.peekNextChar()
@@ -598,11 +575,11 @@ func (l *Lexer) readHeading() []byte {
 	}
 
 	// positionから、readCharで進んだところまで抽出
-	return l.input[position : l.position+1]
+	return l.input[position : l.currentPosition+1]
 }
 
 func (l *Lexer) readString() []byte {
-	position := l.position
+	position := l.currentPosition
 
 	// 次の両方を満たす場合、文字列と判断して読み進める
 	// 1. 次の文字が改行コードではない
@@ -684,7 +661,7 @@ func (l *Lexer) readString() []byte {
 	}
 
 	// positionから、readCharで進んだところまで抽出
-	return l.input[position : l.position+1]
+	return l.input[position : l.currentPosition+1]
 }
 
 func isLineFeedCode(ch byte) bool {
@@ -696,7 +673,7 @@ func isTab(ch byte) bool {
 }
 
 func (l *Lexer) readTab() []byte {
-	position := l.position
+	position := l.currentPosition
 
 	for {
 		nextCh := l.peekNextChar()
@@ -708,7 +685,7 @@ func (l *Lexer) readTab() []byte {
 	}
 
 	// positionから、readCharで進んだところまで抽出
-	return l.input[position : l.position+1]
+	return l.input[position : l.currentPosition+1]
 }
 
 func isSpace(ch byte) bool {
@@ -724,7 +701,7 @@ func isAsterisk(ch byte) bool {
 }
 
 func (l *Lexer) readAsterisk() []byte {
-	position := l.position
+	position := l.currentPosition
 
 	for {
 		nextCh := l.peekNextChar()
@@ -736,7 +713,7 @@ func (l *Lexer) readAsterisk() []byte {
 	}
 
 	// positionから、readCharで進んだところまで抽出
-	return l.input[position : l.position+1]
+	return l.input[position : l.currentPosition+1]
 }
 
 func isUnderScore(ch byte) bool {
@@ -744,7 +721,7 @@ func isUnderScore(ch byte) bool {
 }
 
 func (l *Lexer) readUnderScore() []byte {
-	position := l.position
+	position := l.currentPosition
 
 	for {
 		nextCh := l.peekNextChar()
@@ -756,7 +733,7 @@ func (l *Lexer) readUnderScore() []byte {
 	}
 
 	// positionから、readCharで進んだところまで抽出
-	return l.input[position : l.position+1]
+	return l.input[position : l.currentPosition+1]
 }
 
 func isCitation(ch byte) bool {
@@ -764,7 +741,7 @@ func isCitation(ch byte) bool {
 }
 
 func (l *Lexer) readCitation() []byte {
-	position := l.position
+	position := l.currentPosition
 
 	for {
 		nextCh := l.peekNextChar()
@@ -776,7 +753,7 @@ func (l *Lexer) readCitation() []byte {
 	}
 
 	// positionから、readCharで進んだところまで抽出
-	return l.input[position : l.position+1]
+	return l.input[position : l.currentPosition+1]
 }
 
 func isHyphen(ch byte) bool {
@@ -784,7 +761,7 @@ func isHyphen(ch byte) bool {
 }
 
 func (l *Lexer) readHyphen() []byte {
-	position := l.position
+	position := l.currentPosition
 
 	for {
 		nextCh := l.peekNextChar()
@@ -796,7 +773,7 @@ func (l *Lexer) readHyphen() []byte {
 	}
 
 	// positionから、readCharで進んだところまで抽出
-	return l.input[position : l.position+1]
+	return l.input[position : l.currentPosition+1]
 }
 
 func isLeftBracket(ch byte) bool {
