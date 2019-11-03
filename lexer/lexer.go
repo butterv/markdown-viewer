@@ -33,8 +33,8 @@ type Lexer struct {
 	currentPosition int // 入力における現在の位置(現在の文字を指し示す)
 	nextPosition    int // これから読み込む位置(現在の文字の次)
 
-	currentCh    byte // 現在検査中の文字
-	justBeforeCh byte // 直前の文字
+	currentCh byte // 現在検査中の文字
+	beforeCh  byte // 直前の文字
 
 	// 判定待ちのpositionが合ってもいいかも
 	// italicやboldの判定は、間にいくつかの文字があってから閉じる文字がくるので、閉じる文字があるかないかによって、
@@ -65,7 +65,7 @@ func New(input []byte) *Lexer {
 
 	l := &Lexer{
 		input:                  input,
-		justBeforeCh:           '\n', // 直前の文字の初期値は改行コード
+		beforeCh:               '\n', // 直前の文字の初期値は改行コード
 		startedAsteriskToken:   token.NONE,
 		startedUnderScoreToken: token.NONE,
 	}
@@ -86,7 +86,7 @@ func (l *Lexer) NextToken() token.Token {
 
 	switch l.currentCh {
 	case '#':
-		if isLineFeedCode(l.justBeforeCh) {
+		if isLineFeedCode(l.beforeCh) {
 			literal := l.readHeading()
 			nextCh := l.peekNextChar()
 			if isSpace(nextCh) {
@@ -107,7 +107,7 @@ func (l *Lexer) NextToken() token.Token {
 			tok = newTokenWithLiteral(token.STRING, l.readString())
 		}
 	case '-':
-		if isLineFeedCode(l.justBeforeCh) {
+		if isLineFeedCode(l.beforeCh) {
 			literal := l.readHyphen()
 			nextCh := l.peekNextChar()
 			if isLineFeedCode(nextCh) && len(literal) == 3 {
@@ -135,7 +135,7 @@ func (l *Lexer) NextToken() token.Token {
 		l.startedUnderScoreToken = token.NONE
 		tok = newToken(token.LINE_FEED_CODE)
 	case '>':
-		if isLineFeedCode(l.justBeforeCh) {
+		if isLineFeedCode(l.beforeCh) {
 			literal := l.readCitation()
 			tok = newToken(token.GetCitationToken(len(literal)))
 		} else {
@@ -154,7 +154,7 @@ func (l *Lexer) NextToken() token.Token {
 		} else {
 			// バッククオートエリアを始めようとしている
 			switch {
-			case isLineFeedCode(l.justBeforeCh):
+			case isLineFeedCode(l.beforeCh):
 				if l.existsByEndOfLine([]byte("` ")) {
 					l.startedBackQuoteArea = true
 					tok = newToken(token.BACK_QUOTE_BEGIN)
@@ -162,7 +162,7 @@ func (l *Lexer) NextToken() token.Token {
 					l.startedBackQuoteArea = false
 					tok = newTokenWithLiteral(token.STRING, l.readString())
 				}
-			case isSpace(l.justBeforeCh):
+			case isSpace(l.beforeCh):
 				if l.existsByEndOfLine([]byte("` ")) {
 					l.startedBackQuoteArea = true
 					tok = newToken(token.BACK_QUOTE_BEGIN)
@@ -337,7 +337,7 @@ func (l *Lexer) NextToken() token.Token {
 		} else {
 			// アンダースコアエリアを始めようとしている
 			literal := l.readUnderScore()
-			if isLineFeedCode(l.justBeforeCh) && isLineFeedCode(l.peekNextChar()) && len(literal) == 3 {
+			if isLineFeedCode(l.beforeCh) && isLineFeedCode(l.peekNextChar()) && len(literal) == 3 {
 				l.readChar()
 				tok = newToken(token.HORIZON)
 			} else {
@@ -460,7 +460,7 @@ func newTokenWithLiteral(tokenType token.TokenType, chs []byte) token.Token {
 func (l *Lexer) readChar() {
 	if l.currentPosition > 0 {
 		// 直前の文字をセット
-		l.justBeforeCh = l.currentCh
+		l.beforeCh = l.currentCh
 	}
 
 	// 次の文字が存在するか
