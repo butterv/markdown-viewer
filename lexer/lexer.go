@@ -101,10 +101,10 @@ func (l *Lexer) NextToken() token.Token {
 				var tmpChs []byte
 				tmpChs = append(tmpChs, literal...)
 				tmpChs = append(tmpChs, l.readString()...)
-				tok = newTokenWithLiteral(token.STRING, tmpChs)
+				tok = newToken(token.STRING, tmpChs...)
 			}
 		} else {
-			tok = newTokenWithLiteral(token.STRING, l.readString())
+			tok = newToken(token.STRING, l.readString()...)
 		}
 	case '-':
 		if isLineFeedCode(l.beforeCh) {
@@ -118,10 +118,10 @@ func (l *Lexer) NextToken() token.Token {
 				var tmpChs []byte
 				tmpChs = append(tmpChs, literal...)
 				tmpChs = append(tmpChs, l.readString()...)
-				tok = newTokenWithLiteral(token.STRING, tmpChs)
+				tok = newToken(token.STRING, tmpChs...)
 			}
 		} else {
-			tok = newTokenWithLiteral(token.STRING, l.readString())
+			tok = newToken(token.STRING, l.readString()...)
 		}
 	case '\t':
 		// TODO: Tabはいらないかも
@@ -139,7 +139,7 @@ func (l *Lexer) NextToken() token.Token {
 			literal := l.readCitation()
 			tok = newToken(token.GetCitationToken(len(literal)))
 		} else {
-			tok = newTokenWithLiteral(token.STRING, l.readString())
+			tok = newToken(token.STRING, l.readString()...)
 		}
 	case '`':
 		if l.startedBackQuoteArea {
@@ -148,7 +148,7 @@ func (l *Lexer) NextToken() token.Token {
 			if isSpace(nextCh) || isLineFeedCode(nextCh) {
 				tok = newToken(token.BACK_QUOTE_FINISH)
 			} else {
-				tok = newTokenWithLiteral(token.STRING, l.readString())
+				tok = newToken(token.STRING, l.readString()...)
 			}
 			l.startedBackQuoteArea = false
 		} else {
@@ -160,7 +160,7 @@ func (l *Lexer) NextToken() token.Token {
 					tok = newToken(token.BACK_QUOTE_BEGIN)
 				} else {
 					l.startedBackQuoteArea = false
-					tok = newTokenWithLiteral(token.STRING, l.readString())
+					tok = newToken(token.STRING, l.readString()...)
 				}
 			case isSpace(l.beforeCh):
 				if l.existsByEndOfLine([]byte("` ")) {
@@ -168,11 +168,11 @@ func (l *Lexer) NextToken() token.Token {
 					tok = newToken(token.BACK_QUOTE_BEGIN)
 				} else {
 					l.startedBackQuoteArea = false
-					tok = newTokenWithLiteral(token.STRING, l.readString())
+					tok = newToken(token.STRING, l.readString()...)
 				}
 			default:
 				l.startedBackQuoteArea = false
-				tok = newTokenWithLiteral(token.STRING, l.readString())
+				tok = newToken(token.STRING, l.readString()...)
 			}
 		}
 	case '*':
@@ -184,7 +184,7 @@ func (l *Lexer) NextToken() token.Token {
 				if isSpace(nextCh) || isLineFeedCode(nextCh) {
 					tok = newToken(token.ASTERISK_ITALIC_FINISH)
 				} else {
-					tok = newTokenWithLiteral(token.STRING, l.readString())
+					tok = newToken(token.STRING, l.readString()...)
 				}
 				l.startedAsteriskToken = token.NONE
 			case token.ASTERISK_BOLD_BEGIN:
@@ -194,10 +194,10 @@ func (l *Lexer) NextToken() token.Token {
 						l.readAsterisk()
 						tok = newToken(token.ASTERISK_BOLD_FINISH)
 					} else {
-						tok = newTokenWithLiteral(token.STRING, l.readString())
+						tok = newToken(token.STRING, l.readString()...)
 					}
 				} else {
-					tok = newTokenWithLiteral(token.STRING, l.readString())
+					tok = newToken(token.STRING, l.readString()...)
 				}
 				l.startedAsteriskToken = token.NONE
 			case token.ASTERISK_ITALIC_BOLD_BEGIN:
@@ -208,13 +208,13 @@ func (l *Lexer) NextToken() token.Token {
 							l.readAsterisk()
 							tok = newToken(token.ASTERISK_ITALIC_BOLD_FINISH)
 						} else {
-							tok = newTokenWithLiteral(token.STRING, l.readString())
+							tok = newToken(token.STRING, l.readString()...)
 						}
 					} else {
-						tok = newTokenWithLiteral(token.STRING, l.readString())
+						tok = newToken(token.STRING, l.readString()...)
 					}
 				} else {
-					tok = newTokenWithLiteral(token.STRING, l.readString())
+					tok = newToken(token.STRING, l.readString()...)
 				}
 				l.startedAsteriskToken = token.NONE
 			}
@@ -257,7 +257,7 @@ func (l *Lexer) NextToken() token.Token {
 						var tmpChs []byte
 						tmpChs = append(tmpChs, literal...)
 						tmpChs = append(tmpChs, l.readString()...)
-						tok = newTokenWithLiteral(token.STRING, tmpChs)
+						tok = newToken(token.STRING, tmpChs...)
 					}
 				}
 			case isSpace(beforeCh):
@@ -282,12 +282,12 @@ func (l *Lexer) NextToken() token.Token {
 						var tmpChs []byte
 						tmpChs = append(tmpChs, literal...)
 						tmpChs = append(tmpChs, l.readString()...)
-						tok = newTokenWithLiteral(token.STRING, tmpChs)
+						tok = newToken(token.STRING, tmpChs...)
 					}
 				}
 			default:
 				l.startedAsteriskToken = token.NONE
-				tok = newTokenWithLiteral(token.STRING, l.readString())
+				tok = newToken(token.STRING, l.readString()...)
 			}
 		}
 	case '_':
@@ -299,7 +299,7 @@ func (l *Lexer) NextToken() token.Token {
 				if isSpace(nextCh) || isLineFeedCode(nextCh) {
 					tok = newToken(token.UNDER_SCORE_ITALIC_FINISH)
 				} else {
-					tok = newTokenWithLiteral(token.STRING, l.readString())
+					tok = newToken(token.STRING, l.readString()...)
 				}
 				l.startedUnderScoreToken = token.NONE
 			case token.UNDER_SCORE_BOLD_BEGIN:
@@ -309,10 +309,10 @@ func (l *Lexer) NextToken() token.Token {
 						l.readUnderScore()
 						tok = newToken(token.UNDER_SCORE_BOLD_FINISH)
 					} else {
-						tok = newTokenWithLiteral(token.STRING, l.readString())
+						tok = newToken(token.STRING, l.readString()...)
 					}
 				} else {
-					tok = newTokenWithLiteral(token.STRING, l.readString())
+					tok = newToken(token.STRING, l.readString()...)
 				}
 				l.startedUnderScoreToken = token.NONE
 			case token.UNDER_SCORE_ITALIC_BOLD_BEGIN:
@@ -323,13 +323,13 @@ func (l *Lexer) NextToken() token.Token {
 							l.readUnderScore()
 							tok = newToken(token.UNDER_SCORE_ITALIC_BOLD_FINISH)
 						} else {
-							tok = newTokenWithLiteral(token.STRING, l.readString())
+							tok = newToken(token.STRING, l.readString()...)
 						}
 					} else {
-						tok = newTokenWithLiteral(token.STRING, l.readString())
+						tok = newToken(token.STRING, l.readString()...)
 					}
 				} else {
-					tok = newTokenWithLiteral(token.STRING, l.readString())
+					tok = newToken(token.STRING, l.readString()...)
 				}
 				l.startedUnderScoreToken = token.NONE
 			}
@@ -374,7 +374,7 @@ func (l *Lexer) NextToken() token.Token {
 							var tmpChs []byte
 							tmpChs = append(tmpChs, literal...)
 							tmpChs = append(tmpChs, l.readString()...)
-							tok = newTokenWithLiteral(token.STRING, tmpChs)
+							tok = newToken(token.STRING, tmpChs...)
 						}
 					}
 				case isSpace(beforeCh):
@@ -399,12 +399,12 @@ func (l *Lexer) NextToken() token.Token {
 							var tmpChs []byte
 							tmpChs = append(tmpChs, literal...)
 							tmpChs = append(tmpChs, l.readString()...)
-							tok = newTokenWithLiteral(token.STRING, tmpChs)
+							tok = newToken(token.STRING, tmpChs...)
 						}
 					}
 				default:
 					l.startedUnderScoreToken = token.NONE
-					tok = newTokenWithLiteral(token.STRING, l.readString())
+					tok = newToken(token.STRING, l.readString()...)
 				}
 			}
 		}
@@ -427,7 +427,7 @@ func (l *Lexer) NextToken() token.Token {
 		if matchedChs != nil {
 
 		} else {
-			tok = newTokenWithLiteral(token.STRING, l.readString())
+			tok = newToken(token.STRING, l.readString()...)
 		}
 	case ']':
 	case '(':
@@ -436,20 +436,13 @@ func (l *Lexer) NextToken() token.Token {
 	case 0:
 		tok = newToken(token.EOF)
 	default:
-		tok = newTokenWithLiteral(token.STRING, l.readString())
+		tok = newToken(token.STRING, l.readString()...)
 	}
 
 	return tok
 }
 
-func newToken(tokenType token.TokenType) token.Token {
-	// Tokenオブジェクトを初期化する
-	return token.Token{
-		Type: tokenType,
-	}
-}
-
-func newTokenWithLiteral(tokenType token.TokenType, chs []byte) token.Token {
+func newToken(tokenType token.TokenType, chs ...byte) token.Token {
 	// Tokenオブジェクトを初期化する
 	return token.Token{
 		Type:    tokenType,
