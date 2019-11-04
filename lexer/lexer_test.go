@@ -21,27 +21,8 @@ func compareGotAndWant(t *testing.T, goldenPath string, tests []expected) {
 
 	l := New(input)
 
-	var tokens []token.Token
-	//var i int
-	for {
-		//i++
-		//fmt.Printf("[%d]\n", i)
-
-		toks := l.NextTokens()
-		tokens = append(tokens, toks...)
-
-		//fmt.Printf("%v\n", toks)
-		if toks[0].Type == token.EOF {
-			break
-		}
-	}
-
-	if len(tokens) != len(tests) {
-		t.Errorf("not match length. len(gots)=%d, len(wants)=%d", len(tokens), len(tests))
-	}
-
 	for i, tt := range tests {
-		tok := tokens[i]
+		tok := l.NextToken()
 
 		//if tt.expectedType == token.STRING {
 		//	t.Logf("tests[%d] - got=%d(%q), want=%d(%q)", i, tok.Type, tok.Literal, tt.expectedType, tt.expectedLiteral)
