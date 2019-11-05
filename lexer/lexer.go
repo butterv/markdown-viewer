@@ -474,12 +474,22 @@ func (l *Lexer) NextToken() token.Token {
 			if isLineFeedCode(nextCh) && len(literal) == 3 {
 				l.readChar()
 				tok = newToken(token.HORIZON)
+			} else if isSpace(nextCh) && len(literal) == 1 {
+				tok = newToken(token.HYPHEN, literal...)
 			} else {
 				l.readChar()
 				var tmpChs []byte
 				tmpChs = append(tmpChs, literal...)
 				tmpChs = append(tmpChs, l.readString()...)
 				tok = newToken(token.STRING, tmpChs...)
+			}
+		} else if isTab(l.beforeCh) {
+			if isLineFeedCode(l.twoBeforeChar()) {
+				tok = newToken(token.HYPHEN, l.currentCh)
+			} else if isTab(l.twoBeforeChar()) && isLineFeedCode(l.threeBeforeChar()) {
+				tok = newToken(token.HYPHEN, l.currentCh)
+			} else {
+				tok = newToken(token.STRING, l.currentCh)
 			}
 		} else {
 			tok = newToken(token.STRING, l.readString()...)
