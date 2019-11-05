@@ -25,13 +25,8 @@ const (
 )
 
 var (
-	regexpUrl = regexp.MustCompile(`[*](https?://[\w/:%#\$&\?\(\)~\.=\+\-]+)`)
+	regexpUrl = regexp.MustCompile(`\[.*]\(http(s)?://([\w-]+\.)+[\w-]+(/[\w- ./?%&=]*)?\)`)
 )
-
-type incompleteCh struct {
-	// 今のところのTokenとLiteral
-	// 違った場合のTokenとLiteral
-}
 
 type Lexer struct {
 	input []byte // 入力
@@ -42,28 +37,13 @@ type Lexer struct {
 	currentCh byte // 現在検査中の文字
 	beforeCh  byte // 直前の文字
 
-	// 判定待ちのpositionが合ってもいいかも
-	// italicやboldの判定は、間にいくつかの文字があってから閉じる文字がくるので、閉じる文字があるかないかによって、
-	// 開始の文字のtypeを変えないといけない。
-	// これは他の文字の判定でも使えるかもしれない。
-	// それか、ある開始文字があったら、それがただの文字列なのか何かの開始文字なのかを判定するために、
-	// その行を必要な分peekしてもいいかもしれない。この方が都合よさそう。
-
 	startedBackQuoteArea   bool            // バッククォートエリアが開始されているか
 	startedAsteriskToken   token.TokenType // アスタリスクエリアが開始されているか
 	startedUnderScoreToken token.TokenType // アンダースコアエリアが開始されているか
+	startedLinkText        token.TokenType
 }
 
-//func (l *Lexer) GetInput() []byte {
-//	return l.input
-//}
-
 func New(input []byte) *Lexer {
-	// TODO:
-	// 1行全ての検証が終わるまでは未確定状態として検証を進めて、
-	// 改行コードがきたら確定する
-	// といいかも。
-
 	// 必ず最後は改行コードで終わらせたい
 	if !bytes.HasSuffix(input, []byte("\n")) {
 		input = append(input, '\n')
@@ -76,364 +56,8 @@ func New(input []byte) *Lexer {
 		startedUnderScoreToken: token.NONE,
 	}
 
-	//l.readChar()
 	return l
 }
-
-//
-//func (l *Lexer) NextTokens() []token.Token {
-//	// 1文字進める
-//	l.readChar()
-//
-//	// 空白もタブも改行も、全てスキップせずに解析していく
-//
-//	var tokens []token.Token
-//
-//	switch l.currentCh {
-//	case '#':
-//		if l.beforeCh == LINE_FEED_CODE_N || l.beforeCh == LINE_FEED_CODE_R {
-//			literal := l.readHeading()
-//			nextCh := l.peekNextChar()
-//			switch {
-//			case nextCh == SPACE:
-//				tokens = []token.Token{newToken(token.GetHeadingToken(len(literal)))}
-//				// 空白をスキップする
-//				l.readChar()
-//			case (nextCh == LINE_FEED_CODE_N || nextCh == LINE_FEED_CODE_R) && len(literal) == 3:
-//				l.readChar()
-//				tokens = []token.Token{newToken(token.HORIZON)}
-//			default:
-//				l.readChar()
-//				var tmpChs []byte
-//				tmpChs = append(tmpChs, literal...)
-//				tmpChs = append(tmpChs, l.readString()...)
-//				tokens = []token.Token{newToken(token.STRING, tmpChs...)}
-//			}
-//		} else {
-//			tokens = []token.Token{newToken(token.STRING, l.readString()...)}
-//		}
-//	//case '-':
-//	//	if isLineFeedCode(l.beforeCh) {
-//	//		literal := l.readHyphen()
-//	//		nextCh := l.peekNextChar()
-//	//		if isLineFeedCode(nextCh) && len(literal) == 3 {
-//	//			l.readChar()
-//	//			tokens = append(tokens, newToken(token.HORIZON))
-//	//		} else {
-//	//			l.readChar()
-//	//			var tmpChs []byte
-//	//			tmpChs = append(tmpChs, literal...)
-//	//			tmpChs = append(tmpChs, l.readString()...)
-//	//			tokens = append(tokens, newToken(token.STRING, tmpChs...))
-//	//		}
-//	//	} else {
-//	//		tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//	}
-//	//case '\t':
-//	//	// TODO: Tabはいらないかも
-//	//	literal := l.readTab()
-//	//	tokens = append(tokens, newToken(token.GetTabToken(len(literal))))
-//	case ' ':
-//		tokens = []token.Token{newToken(token.SPACE)}
-//	case '\n', '\r':
-//		l.startedBackQuoteArea = false
-//		l.startedAsteriskToken = token.NONE
-//		l.startedUnderScoreToken = token.NONE
-//		tokens = []token.Token{newToken(token.LINE_FEED_CODE)}
-//	//case '>':
-//	//	if isLineFeedCode(l.beforeCh) {
-//	//		literal := l.readCitation()
-//	//		tokens = append(tokens, newToken(token.GetCitationToken(len(literal))))
-//	//	} else {
-//	//		tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//	}
-//	//case '`':
-//	//	if l.startedBackQuoteArea {
-//	//		// バッククォートエリアはすでに始まっている
-//	//		nextCh := l.peekNextChar()
-//	//		if isSpace(nextCh) || isLineFeedCode(nextCh) {
-//	//			tokens = append(tokens, newToken(token.BACK_QUOTE_FINISH))
-//	//		} else {
-//	//			tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//		}
-//	//		l.startedBackQuoteArea = false
-//	//	} else {
-//	//		// バッククオートエリアを始めようとしている
-//	//		switch {
-//	//		case isLineFeedCode(l.beforeCh):
-//	//			if l.existsByEndOfLine([]byte("` ")) {
-//	//				l.startedBackQuoteArea = true
-//	//				tokens = append(tokens, newToken(token.BACK_QUOTE_BEGIN))
-//	//			} else {
-//	//				l.startedBackQuoteArea = false
-//	//				tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//			}
-//	//		case isSpace(l.beforeCh):
-//	//			if l.existsByEndOfLine([]byte("` ")) {
-//	//				l.startedBackQuoteArea = true
-//	//				tokens = append(tokens, newToken(token.BACK_QUOTE_BEGIN))
-//	//			} else {
-//	//				l.startedBackQuoteArea = false
-//	//				tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//			}
-//	//		default:
-//	//			l.startedBackQuoteArea = false
-//	//			tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//		}
-//	//	}
-//	//case '*':
-//	//	if l.startedAsteriskToken != token.NONE {
-//	//		// アスタリスクエリアはすでに始まっている
-//	//		switch l.startedAsteriskToken {
-//	//		case token.ASTERISK_ITALIC_BEGIN:
-//	//			nextCh := l.peekNextChar()
-//	//			if isSpace(nextCh) || isLineFeedCode(nextCh) {
-//	//				tokens = append(tokens, newToken(token.ASTERISK_ITALIC_FINISH))
-//	//			} else {
-//	//				tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//			}
-//	//			l.startedAsteriskToken = token.NONE
-//	//		case token.ASTERISK_BOLD_BEGIN:
-//	//			if isAsterisk(l.peekNextChar()) {
-//	//				peek2ndOrderChar := l.peek2ndOrderChar()
-//	//				if isSpace(peek2ndOrderChar) || isLineFeedCode(peek2ndOrderChar) {
-//	//					l.readAsterisk()
-//	//					tokens = append(tokens, newToken(token.ASTERISK_BOLD_FINISH))
-//	//				} else {
-//	//					tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//				}
-//	//			} else {
-//	//				tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//			}
-//	//			l.startedAsteriskToken = token.NONE
-//	//		case token.ASTERISK_ITALIC_BOLD_BEGIN:
-//	//			if isAsterisk(l.peekNextChar()) {
-//	//				if isAsterisk(l.peek2ndOrderChar()) {
-//	//					peek3ndOrderChar := l.peek3ndOrderChar()
-//	//					if isSpace(peek3ndOrderChar) || isLineFeedCode(peek3ndOrderChar) {
-//	//						l.readAsterisk()
-//	//						tokens = append(tokens, newToken(token.ASTERISK_ITALIC_BOLD_FINISH))
-//	//					} else {
-//	//						tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//					}
-//	//				} else {
-//	//					tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//				}
-//	//			} else {
-//	//				tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//			}
-//	//			l.startedAsteriskToken = token.NONE
-//	//		}
-//	//
-//	//	} else {
-//	//		// アスタリスクエリアを始めようとしている
-//	//		literal := l.readAsterisk()
-//	//		//fmt.Printf("asterisk: %s\n", literal)
-//	//
-//	//		var beforeCh byte
-//	//		switch len(literal) {
-//	//		case 1:
-//	//			beforeCh = l.lookBackChar()
-//	//		case 2:
-//	//			beforeCh = l.twoBeforeChar()
-//	//		case 3:
-//	//			beforeCh = l.threeBeforeChar()
-//	//		}
-//	//
-//	//		switch {
-//	//		case isLineFeedCode(beforeCh):
-//	//			var tmpChs []byte
-//	//			tmpChs = append(tmpChs, literal...)
-//	//			tmpChs = append(tmpChs, ' ')
-//	//			if l.existsByEndOfLine(tmpChs) {
-//	//				tokenType := token.GetAsteriskToken(len(literal))
-//	//				l.startedAsteriskToken = tokenType
-//	//				tokens = append(tokens, newToken(tokenType))
-//	//			} else {
-//	//				tmpChs = nil
-//	//				tmpChs = append(tmpChs, literal...)
-//	//				// TODO: \rも検証すべき
-//	//				tmpChs = append(tmpChs, '\n')
-//	//				if l.existsByEndOfLine(tmpChs) {
-//	//					tokenType := token.GetAsteriskToken(len(literal))
-//	//					l.startedAsteriskToken = tokenType
-//	//					tokens = append(tokens, newToken(tokenType))
-//	//				} else {
-//	//					l.startedAsteriskToken = token.NONE
-//	//					var tmpChs []byte
-//	//					tmpChs = append(tmpChs, literal...)
-//	//					tmpChs = append(tmpChs, l.readString()...)
-//	//					tokens = append(tokens, newToken(token.STRING, tmpChs...))
-//	//				}
-//	//			}
-//	//		case isSpace(beforeCh):
-//	//			var tmpChs []byte
-//	//			tmpChs = append(tmpChs, literal...)
-//	//			tmpChs = append(tmpChs, ' ')
-//	//			if l.existsByEndOfLine(tmpChs) {
-//	//				tokenType := token.GetAsteriskToken(len(literal))
-//	//				l.startedAsteriskToken = tokenType
-//	//				tokens = append(tokens, newToken(tokenType))
-//	//			} else {
-//	//				tmpChs = nil
-//	//				tmpChs = append(tmpChs, literal...)
-//	//				// TODO: \rも検証すべき
-//	//				tmpChs = append(tmpChs, '\n')
-//	//				if l.existsByEndOfLine(tmpChs) {
-//	//					tokenType := token.GetAsteriskToken(len(literal))
-//	//					l.startedAsteriskToken = tokenType
-//	//					tokens = append(tokens, newToken(tokenType))
-//	//				} else {
-//	//					l.startedAsteriskToken = token.NONE
-//	//					var tmpChs []byte
-//	//					tmpChs = append(tmpChs, literal...)
-//	//					tmpChs = append(tmpChs, l.readString()...)
-//	//					tokens = append(tokens, newToken(token.STRING, tmpChs...))
-//	//				}
-//	//			}
-//	//		default:
-//	//			l.startedAsteriskToken = token.NONE
-//	//			tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//		}
-//	//	}
-//	//case '_':
-//	//	if l.startedUnderScoreToken != token.NONE {
-//	//		// アンダースコアはすでに始まっている
-//	//		switch l.startedUnderScoreToken {
-//	//		case token.UNDER_SCORE_ITALIC_BEGIN:
-//	//			nextCh := l.peekNextChar()
-//	//			if isSpace(nextCh) || isLineFeedCode(nextCh) {
-//	//				tokens = append(tokens, newToken(token.UNDER_SCORE_ITALIC_FINISH))
-//	//			} else {
-//	//				tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//			}
-//	//			l.startedUnderScoreToken = token.NONE
-//	//		case token.UNDER_SCORE_BOLD_BEGIN:
-//	//			if isUnderScore(l.peekNextChar()) {
-//	//				peek2ndOrderChar := l.peek2ndOrderChar()
-//	//				if isSpace(peek2ndOrderChar) || isLineFeedCode(peek2ndOrderChar) {
-//	//					l.readUnderScore()
-//	//					tokens = append(tokens, newToken(token.UNDER_SCORE_BOLD_FINISH))
-//	//				} else {
-//	//					tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//				}
-//	//			} else {
-//	//				tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//			}
-//	//			l.startedUnderScoreToken = token.NONE
-//	//		case token.UNDER_SCORE_ITALIC_BOLD_BEGIN:
-//	//			if isUnderScore(l.peekNextChar()) {
-//	//				if isUnderScore(l.peek2ndOrderChar()) {
-//	//					peek3ndOrderChar := l.peek3ndOrderChar()
-//	//					if isSpace(peek3ndOrderChar) || isLineFeedCode(peek3ndOrderChar) {
-//	//						l.readUnderScore()
-//	//						tokens = append(tokens, newToken(token.UNDER_SCORE_ITALIC_BOLD_FINISH))
-//	//					} else {
-//	//						tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//					}
-//	//				} else {
-//	//					tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//				}
-//	//			} else {
-//	//				tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//			}
-//	//			l.startedUnderScoreToken = token.NONE
-//	//		}
-//	//
-//	//	} else {
-//	//		// アンダースコアエリアを始めようとしている
-//	//		literal := l.readUnderScore()
-//	//		if isLineFeedCode(l.beforeCh) && isLineFeedCode(l.peekNextChar()) && len(literal) == 3 {
-//	//			l.readChar()
-//	//			tokens = append(tokens, newToken(token.HORIZON))
-//	//		} else {
-//	//			var beforeCh byte
-//	//			switch len(literal) {
-//	//			case 1:
-//	//				beforeCh = l.lookBackChar()
-//	//			case 2:
-//	//				beforeCh = l.twoBeforeChar()
-//	//			case 3:
-//	//				beforeCh = l.threeBeforeChar()
-//	//			}
-//	//
-//	//			switch {
-//	//			case isLineFeedCode(beforeCh):
-//	//				var tmpChs []byte
-//	//				tmpChs = append(tmpChs, literal...)
-//	//				tmpChs = append(tmpChs, ' ')
-//	//				if l.existsByEndOfLine(tmpChs) {
-//	//					tokenType := token.GetUnderScoreToken(len(literal))
-//	//					l.startedUnderScoreToken = tokenType
-//	//					tokens = append(tokens, newToken(tokenType))
-//	//				} else {
-//	//					tmpChs = nil
-//	//					tmpChs = append(tmpChs, literal...)
-//	//					// TODO: \rも検証すべき
-//	//					tmpChs = append(tmpChs, '\n')
-//	//					if l.existsByEndOfLine(tmpChs) {
-//	//						tokenType := token.GetUnderScoreToken(len(literal))
-//	//						l.startedUnderScoreToken = tokenType
-//	//						tokens = append(tokens, newToken(tokenType))
-//	//					} else {
-//	//						l.startedUnderScoreToken = token.NONE
-//	//						var tmpChs []byte
-//	//						tmpChs = append(tmpChs, literal...)
-//	//						tmpChs = append(tmpChs, l.readString()...)
-//	//						tokens = append(tokens, newToken(token.STRING, tmpChs...))
-//	//					}
-//	//				}
-//	//			case isSpace(beforeCh):
-//	//				var tmpChs []byte
-//	//				tmpChs = append(tmpChs, literal...)
-//	//				tmpChs = append(tmpChs, ' ')
-//	//				if l.existsByEndOfLine(tmpChs) {
-//	//					tokenType := token.GetUnderScoreToken(len(literal))
-//	//					l.startedUnderScoreToken = tokenType
-//	//					tokens = append(tokens, newToken(tokenType))
-//	//				} else {
-//	//					tmpChs = nil
-//	//					tmpChs = append(tmpChs, literal...)
-//	//					// TODO: \rも検証すべき
-//	//					tmpChs = append(tmpChs, '\n')
-//	//					if l.existsByEndOfLine(tmpChs) {
-//	//						tokenType := token.GetUnderScoreToken(len(literal))
-//	//						l.startedUnderScoreToken = tokenType
-//	//						tokens = append(tokens, newToken(tokenType))
-//	//					} else {
-//	//						l.startedUnderScoreToken = token.NONE
-//	//						var tmpChs []byte
-//	//						tmpChs = append(tmpChs, literal...)
-//	//						tmpChs = append(tmpChs, l.readString()...)
-//	//						tokens = append(tokens, newToken(token.STRING, tmpChs...))
-//	//					}
-//	//				}
-//	//			default:
-//	//				l.startedUnderScoreToken = token.NONE
-//	//				tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//			}
-//	//		}
-//	//	}
-//	//
-//	//case '[':
-//	//	chs := l.untilLineFeedCode()
-//	//	matchedChs := regexpUrl.Find(chs)
-//	//	if matchedChs != nil {
-//	//		for i := 0; i < len(matchedChs)-1; i++ {
-//	//			l.readChar()
-//	//		}
-//	//
-//	//	} else {
-//	//		tokens = append(tokens, newToken(token.STRING, l.readString()...))
-//	//	}
-//	case 0:
-//		tokens = []token.Token{newToken(token.EOF)}
-//	default:
-//		tokens = []token.Token{newToken(token.STRING, l.readString()...)}
-//	}
-//
-//	return tokens
-//}
 
 func (l *Lexer) NextToken() token.Token {
 	// 1文字進める
@@ -442,8 +66,6 @@ func (l *Lexer) NextToken() token.Token {
 	// 空白もタブも改行も、全てスキップせずに解析していく
 
 	var tok token.Token
-
-	// fmt.Printf("%q\n", l.startedAsteriskToken)
 
 	switch l.currentCh {
 	case '#':
@@ -472,7 +94,7 @@ func (l *Lexer) NextToken() token.Token {
 			literal := l.readHyphen()
 			nextCh := l.peekNextChar()
 			if isLineFeedCode(nextCh) && len(literal) == 3 {
-				l.readChar()
+				//l.readChar()
 				tok = newToken(token.HORIZON)
 			} else if isSpace(nextCh) && len(literal) == 1 {
 				tok = newToken(token.HYPHEN, literal...)
@@ -592,21 +214,9 @@ func (l *Lexer) NextToken() token.Token {
 
 		} else {
 			// アスタリスクエリアを始めようとしている
-			literal := l.readAsterisk()
-			//fmt.Printf("asterisk: %s\n", literal)
-
-			var beforeCh byte
-			switch len(literal) {
-			case 1:
-				beforeCh = l.lookBackChar()
-			case 2:
-				beforeCh = l.twoBeforeChar()
-			case 3:
-				beforeCh = l.threeBeforeChar()
-			}
-
 			switch {
-			case isLineFeedCode(beforeCh):
+			case isLineFeedCode(l.beforeCh):
+				literal := l.readAsterisk()
 				var tmpChs []byte
 				tmpChs = append(tmpChs, literal...)
 				tmpChs = append(tmpChs, ' ')
@@ -614,6 +224,8 @@ func (l *Lexer) NextToken() token.Token {
 					tokenType := token.GetAsteriskToken(len(literal))
 					l.startedAsteriskToken = tokenType
 					tok = newToken(tokenType)
+				} else if isLineFeedCode(l.peekNextChar()) && len(literal) == 3 {
+					tok = newToken(token.HORIZON)
 				} else {
 					tmpChs = nil
 					tmpChs = append(tmpChs, literal...)
@@ -631,7 +243,8 @@ func (l *Lexer) NextToken() token.Token {
 						tok = newToken(token.STRING, tmpChs...)
 					}
 				}
-			case isSpace(beforeCh):
+			case isSpace(l.beforeCh):
+				literal := l.readAsterisk()
 				var tmpChs []byte
 				tmpChs = append(tmpChs, literal...)
 				tmpChs = append(tmpChs, ' ')
@@ -707,76 +320,64 @@ func (l *Lexer) NextToken() token.Token {
 
 		} else {
 			// アンダースコアエリアを始めようとしている
-			literal := l.readUnderScore()
-			if isLineFeedCode(l.beforeCh) && isLineFeedCode(l.peekNextChar()) && len(literal) == 3 {
-				l.readChar()
-				tok = newToken(token.HORIZON)
-			} else {
-				var beforeCh byte
-				switch len(literal) {
-				case 1:
-					beforeCh = l.lookBackChar()
-				case 2:
-					beforeCh = l.twoBeforeChar()
-				case 3:
-					beforeCh = l.threeBeforeChar()
-				}
-
-				switch {
-				case isLineFeedCode(beforeCh):
-					var tmpChs []byte
+			switch {
+			case isLineFeedCode(l.beforeCh):
+				literal := l.readUnderScore()
+				var tmpChs []byte
+				tmpChs = append(tmpChs, literal...)
+				tmpChs = append(tmpChs, ' ')
+				if l.existsByEndOfLine(tmpChs) {
+					tokenType := token.GetUnderScoreToken(len(literal))
+					l.startedUnderScoreToken = tokenType
+					tok = newToken(tokenType)
+				} else if isLineFeedCode(l.peekNextChar()) && len(literal) == 3 {
+					tok = newToken(token.HORIZON)
+				} else {
+					tmpChs = nil
 					tmpChs = append(tmpChs, literal...)
-					tmpChs = append(tmpChs, ' ')
+					// TODO: \rも検証すべき
+					tmpChs = append(tmpChs, '\n')
 					if l.existsByEndOfLine(tmpChs) {
 						tokenType := token.GetUnderScoreToken(len(literal))
 						l.startedUnderScoreToken = tokenType
 						tok = newToken(tokenType)
 					} else {
-						tmpChs = nil
+						l.startedUnderScoreToken = token.NONE
+						var tmpChs []byte
 						tmpChs = append(tmpChs, literal...)
-						// TODO: \rも検証すべき
-						tmpChs = append(tmpChs, '\n')
-						if l.existsByEndOfLine(tmpChs) {
-							tokenType := token.GetUnderScoreToken(len(literal))
-							l.startedUnderScoreToken = tokenType
-							tok = newToken(tokenType)
-						} else {
-							l.startedUnderScoreToken = token.NONE
-							var tmpChs []byte
-							tmpChs = append(tmpChs, literal...)
-							tmpChs = append(tmpChs, l.readString()...)
-							tok = newToken(token.STRING, tmpChs...)
-						}
+						tmpChs = append(tmpChs, l.readString()...)
+						tok = newToken(token.STRING, tmpChs...)
 					}
-				case isSpace(beforeCh):
-					var tmpChs []byte
+				}
+			case isSpace(l.beforeCh):
+				literal := l.readUnderScore()
+				var tmpChs []byte
+				tmpChs = append(tmpChs, literal...)
+				tmpChs = append(tmpChs, ' ')
+				if l.existsByEndOfLine(tmpChs) {
+					tokenType := token.GetUnderScoreToken(len(literal))
+					l.startedUnderScoreToken = tokenType
+					tok = newToken(tokenType)
+				} else {
+					tmpChs = nil
 					tmpChs = append(tmpChs, literal...)
-					tmpChs = append(tmpChs, ' ')
+					// TODO: \rも検証すべき
+					tmpChs = append(tmpChs, '\n')
 					if l.existsByEndOfLine(tmpChs) {
 						tokenType := token.GetUnderScoreToken(len(literal))
 						l.startedUnderScoreToken = tokenType
 						tok = newToken(tokenType)
 					} else {
-						tmpChs = nil
+						l.startedUnderScoreToken = token.NONE
+						var tmpChs []byte
 						tmpChs = append(tmpChs, literal...)
-						// TODO: \rも検証すべき
-						tmpChs = append(tmpChs, '\n')
-						if l.existsByEndOfLine(tmpChs) {
-							tokenType := token.GetUnderScoreToken(len(literal))
-							l.startedUnderScoreToken = tokenType
-							tok = newToken(tokenType)
-						} else {
-							l.startedUnderScoreToken = token.NONE
-							var tmpChs []byte
-							tmpChs = append(tmpChs, literal...)
-							tmpChs = append(tmpChs, l.readString()...)
-							tok = newToken(token.STRING, tmpChs...)
-						}
+						tmpChs = append(tmpChs, l.readString()...)
+						tok = newToken(token.STRING, tmpChs...)
 					}
-				default:
-					l.startedUnderScoreToken = token.NONE
-					tok = newToken(token.STRING, l.readString()...)
 				}
+			default:
+				l.startedUnderScoreToken = token.NONE
+				tok = newToken(token.STRING, l.readString()...)
 			}
 		}
 
@@ -784,17 +385,30 @@ func (l *Lexer) NextToken() token.Token {
 		chs := l.untilLineFeedCode()
 		matchedChs := regexpUrl.Find(chs)
 		if matchedChs != nil {
-			for i := 0; i < len(matchedChs)-1; i++ {
-				l.readChar()
-			}
-
+			l.startedLinkText = token.LINK_TEXT_BEGIN
+			tok = newToken(token.LINK_TEXT_BEGIN, l.currentCh)
 		} else {
 			tok = newToken(token.STRING, l.readString()...)
 		}
 	case ']':
+		if l.startedLinkText == token.LINK_TEXT_BEGIN {
+			tok = newToken(token.LINK_TEXT_FINISH, l.currentCh)
+		} else {
+			tok = newToken(token.STRING, l.readString()...)
+		}
 	case '(':
+		if l.startedLinkText == token.LINK_TEXT_BEGIN {
+			tok = newToken(token.LINK_BEGIN, l.currentCh)
+		} else {
+			tok = newToken(token.STRING, l.readString()...)
+		}
 	case ')':
-
+		if l.startedLinkText == token.LINK_TEXT_BEGIN {
+			l.startedLinkText = token.NONE
+			tok = newToken(token.LINK_FINISH, l.currentCh)
+		} else {
+			tok = newToken(token.STRING, l.readString()...)
+		}
 	case 0:
 		tok = newToken(token.EOF)
 	default:
@@ -1004,7 +618,10 @@ func (l *Lexer) readString() []byte {
 					}
 				}
 			}
-		case isLeftBracket(nextCh):
+		case isRightBracket(nextCh), isRightParen(nextCh):
+			if l.startedLinkText == token.LINK_TEXT_BEGIN {
+				breakFlg = true
+			}
 		}
 
 		if breakFlg {
@@ -1131,27 +748,13 @@ func (l *Lexer) readHyphen() []byte {
 	return l.input[position : l.currentPosition+1]
 }
 
-func isLeftBracket(ch byte) bool {
-	return ch == '['
+func isRightBracket(ch byte) bool {
+	return ch == ']'
 }
 
-//func (l *Lexer) readSpace() ([]byte, int) {
-//	position := l.position
-//
-//	cnt := 1
-//	for isSpace(l.ch) && isSpace(l.peekNextChar()) && cnt <= 4 {
-//		// 文字が途切れるまで読み込む
-//		l.readChar()
-//		cnt++
-//	}
-//	// positionから、readCharで進んだところまで抽出
-//	return l.input[position : l.position+1], cnt
-//}
-
-//func isDigit(ch byte) bool {
-//	// 数値
-//	return '0' <= ch && ch <= '9'
-//}
+func isRightParen(ch byte) bool {
+	return ch == ')'
+}
 
 func (l *Lexer) untilLineFeedCode() []byte {
 	position := l.currentPosition
