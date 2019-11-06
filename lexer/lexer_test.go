@@ -436,6 +436,8 @@ func TestLexer6(t *testing.T) {
 		{expectedType: token.STRING, expectedLiteral: "https://www.google.com/"},
 		{expectedType: token.LINK_FINISH},
 		{expectedType: token.LINE_FEED_CODE},
+		{expectedType: token.STRING, expectedLiteral: "[Google](https://www.google.com/"},
+		{expectedType: token.LINE_FEED_CODE},
 		{expectedType: token.EOF},
 	}
 
