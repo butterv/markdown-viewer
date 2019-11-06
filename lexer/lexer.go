@@ -29,17 +29,17 @@ var (
 )
 
 type Lexer struct {
-	input []byte // 入力
+	input []byte
 
-	currentPosition int // 入力における現在の位置(現在の文字を指し示す)
-	nextPosition    int // これから読み込む位置(現在の文字の次)
+	currentPosition int
+	nextPosition    int
 
-	currentCh byte // 現在検査中の文字
-	beforeCh  byte // 直前の文字
+	currentCh byte
+	beforeCh  byte
 
-	startedBackQuoteArea   bool            // バッククォートエリアが開始されているか
-	startedAsteriskToken   token.TokenType // アスタリスクエリアが開始されているか
-	startedUnderScoreToken token.TokenType // アンダースコアエリアが開始されているか
+	startedBackQuoteArea   bool
+	startedAsteriskToken   token.TokenType
+	startedUnderScoreToken token.TokenType
 	startedLinkText        token.TokenType
 }
 
@@ -94,7 +94,6 @@ func (l *Lexer) NextToken() token.Token {
 			literal := l.readHyphen()
 			nextCh := l.peekNextChar()
 			if isLineFeedCode(nextCh) && len(literal) == 3 {
-				//l.readChar()
 				tok = newToken(token.HORIZON)
 			} else if isSpace(nextCh) && len(literal) == 1 {
 				tok = newToken(token.HYPHEN, literal...)
@@ -136,7 +135,6 @@ func (l *Lexer) NextToken() token.Token {
 		}
 	case '`':
 		if l.startedBackQuoteArea {
-			// バッククォートエリアはすでに始まっている
 			nextCh := l.peekNextChar()
 			if isSpace(nextCh) || isLineFeedCode(nextCh) {
 				tok = newToken(token.BACK_QUOTE_FINISH)
@@ -145,7 +143,6 @@ func (l *Lexer) NextToken() token.Token {
 			}
 			l.startedBackQuoteArea = false
 		} else {
-			// バッククオートエリアを始めようとしている
 			switch {
 			case isLineFeedCode(l.beforeCh):
 				if l.existsByEndOfLine([]byte("` ")) {
@@ -170,7 +167,6 @@ func (l *Lexer) NextToken() token.Token {
 		}
 	case '*':
 		if l.startedAsteriskToken != token.NONE {
-			// アスタリスクエリアはすでに始まっている
 			switch l.startedAsteriskToken {
 			case token.ASTERISK_ITALIC_BEGIN:
 				nextCh := l.peekNextChar()
@@ -213,7 +209,6 @@ func (l *Lexer) NextToken() token.Token {
 			}
 
 		} else {
-			// アスタリスクエリアを始めようとしている
 			switch {
 			case isLineFeedCode(l.beforeCh):
 				literal := l.readAsterisk()
@@ -276,7 +271,6 @@ func (l *Lexer) NextToken() token.Token {
 		}
 	case '_':
 		if l.startedUnderScoreToken != token.NONE {
-			// アンダースコアはすでに始まっている
 			switch l.startedUnderScoreToken {
 			case token.UNDER_SCORE_ITALIC_BEGIN:
 				nextCh := l.peekNextChar()
@@ -319,7 +313,6 @@ func (l *Lexer) NextToken() token.Token {
 			}
 
 		} else {
-			// アンダースコアエリアを始めようとしている
 			switch {
 			case isLineFeedCode(l.beforeCh):
 				literal := l.readUnderScore()
@@ -380,7 +373,6 @@ func (l *Lexer) NextToken() token.Token {
 				tok = newToken(token.STRING, l.readString()...)
 			}
 		}
-
 	case '[':
 		chs := l.untilLineFeedCode()
 		matchedChs := regexpUrl.Find(chs)
@@ -419,7 +411,6 @@ func (l *Lexer) NextToken() token.Token {
 }
 
 func newToken(tokenType token.TokenType, chs ...byte) token.Token {
-	// Tokenオブジェクトを初期化する
 	return token.Token{
 		Type:    tokenType,
 		Literal: chs,
@@ -455,7 +446,7 @@ func (l *Lexer) peekNextChar() byte {
 }
 
 func (l *Lexer) peek2ndOrderChar() byte {
-	// 次の次の文字を覗き見る
+	// 2つ次の文字を覗き見る
 	if l.nextPosition+1 >= len(l.input) {
 		return 0
 	} else {
@@ -464,7 +455,7 @@ func (l *Lexer) peek2ndOrderChar() byte {
 }
 
 func (l *Lexer) peek3ndOrderChar() byte {
-	// 次の次の次の文字を覗き見る
+	// 3つ次の文字を覗き見る
 	if l.nextPosition+2 >= len(l.input) {
 		return 0
 	} else {
@@ -473,7 +464,7 @@ func (l *Lexer) peek3ndOrderChar() byte {
 }
 
 func (l *Lexer) peek4ndOrderChar() byte {
-	// 次の次の次の次の文字を覗き見る
+	// 4つ次の文字を覗き見る
 	if l.nextPosition+3 >= len(l.input) {
 		return 0
 	} else {
@@ -501,14 +492,6 @@ func (l *Lexer) existsByEndOfLine(chs []byte) bool {
 	}
 
 	return false
-}
-
-func (l *Lexer) lookBackChar() byte {
-	// 直前の文字を見る
-	if l.nextPosition < 2 {
-		return 0
-	}
-	return l.input[l.nextPosition-2]
 }
 
 func (l *Lexer) twoBeforeChar() byte {
