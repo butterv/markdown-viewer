@@ -5,16 +5,14 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/istsh/markdown-viewer/parser"
-
 	"github.com/istsh/markdown-viewer/lexer"
+	"github.com/istsh/markdown-viewer/parser"
 )
 
 type Input struct {
 	Markdown string `json:"markdown"`
 }
 
-// See: https://qiita.com/tbpgr/items/989c6badefff69377da7
 func main() {
 	http.HandleFunc("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
@@ -35,30 +33,10 @@ func main() {
 
 			inputBytes := []byte(input.Markdown)
 
-			// var res []byte
-
 			l := lexer.New(inputBytes)
 			p := parser.New(l)
 			result := p.Parse()
 
-			//for _, r := range result {
-			//	tok := l.NextToken()
-			//
-			//	//if tok.Type == token.EOF {
-			//	//	break
-			//	//}
-			//	//
-			//	//if tok.Type == token.LINE_FEED_CODE {
-			//	//	res = append(res, '\n')
-			//	//	//fmt.Println()
-			//	//} else if tok.Type == token.STRING {
-			//	//	res = append(res, tok.Literal...)
-			//	//	//fmt.Printf("%s", tok.Literal)
-			//	//} else {
-			//	//	res = append(res, []byte(fmt.Sprintf("%q", tok.Type))...)
-			//	//	//fmt.Printf("%q", tok.Type)
-			//	//}
-			//}
 			w.Header().Set("Content-Type", "application/json")
 			w.Write(result)
 		} else {
