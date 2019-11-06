@@ -8,20 +8,14 @@ import (
 )
 
 type Parser struct {
-	l      *lexer.Lexer
-	errors []string
-
-	curToken  token.Token
-	peekToken token.Token
-
-	//prefixParseFns map[token.TokenType]prefixParseFn
-	//infixParseFns  map[token.TokenType]infixParseFn
+	l *lexer.Lexer
+	//errors []string
 }
 
 func New(l *lexer.Lexer) *Parser {
 	p := &Parser{
-		l:      l,
-		errors: []string{},
+		l: l,
+		//errors: []string{},
 	}
 
 	return p
