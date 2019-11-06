@@ -80,10 +80,10 @@ const (
 	//
 	//PLUS = "+"
 	//
-	LPAREN   = "LPAREN"
-	RPAREN   = "RPAREN"
-	LBRACKET = "LBRACKET"
-	RBRACKET = "RBRACKET"
+	//LPAREN   = "LPAREN"
+	//RPAREN   = "RPAREN"
+	//LBRACKET = "LBRACKET"
+	//RBRACKET = "RBRACKET"
 	//
 	//// ここから下は不要かも
 	//ASSIGN = "="

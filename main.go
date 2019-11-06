@@ -2,11 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 
-	"github.com/istsh/markdown-viewer/token"
+	"github.com/istsh/markdown-viewer/parser"
 
 	"github.com/istsh/markdown-viewer/lexer"
 )
@@ -36,28 +35,32 @@ func main() {
 
 			inputBytes := []byte(input.Markdown)
 
-			var res []byte
+			// var res []byte
 
 			l := lexer.New(inputBytes)
-			for {
-				tok := l.NextToken()
-				if tok.Type == token.EOF {
-					break
-				}
+			p := parser.New(l)
+			result := p.Parse()
 
-				if tok.Type == token.LINE_FEED_CODE {
-					res = append(res, '\n')
-					//fmt.Println()
-				} else if tok.Type == token.STRING {
-					res = append(res, tok.Literal...)
-					//fmt.Printf("%s", tok.Literal)
-				} else {
-					res = append(res, []byte(fmt.Sprintf("%q", tok.Type))...)
-					//fmt.Printf("%q", tok.Type)
-				}
-			}
+			//for _, r := range result {
+			//	tok := l.NextToken()
+			//
+			//	//if tok.Type == token.EOF {
+			//	//	break
+			//	//}
+			//	//
+			//	//if tok.Type == token.LINE_FEED_CODE {
+			//	//	res = append(res, '\n')
+			//	//	//fmt.Println()
+			//	//} else if tok.Type == token.STRING {
+			//	//	res = append(res, tok.Literal...)
+			//	//	//fmt.Printf("%s", tok.Literal)
+			//	//} else {
+			//	//	res = append(res, []byte(fmt.Sprintf("%q", tok.Type))...)
+			//	//	//fmt.Printf("%q", tok.Type)
+			//	//}
+			//}
 			w.Header().Set("Content-Type", "application/json")
-			w.Write(res)
+			w.Write(result)
 		} else {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		}
