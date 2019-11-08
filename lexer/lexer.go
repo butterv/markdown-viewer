@@ -8,20 +8,20 @@ import (
 )
 
 const (
-	SHARP            = '#'
-	HYPHEN           = '-'
-	TAB              = '\t'
-	SPACE            = ' '
-	LINE_FEED_CODE_N = '\n'
-	LINE_FEED_CODE_R = '\r'
-	GT               = '>'
-	BACK_QUOTE       = '`'
-	ASTERISK         = '*'
-	UNDER_SCORE      = '_'
-	LBRACKET         = "["
-	RBRACKET         = "]"
-	LPAREN           = "("
-	RPAREN           = ")"
+	SHARP             = '#'
+	HYPHEN            = '-'
+	TAB               = '\t'
+	SPACE             = ' '
+	LINE_BREAK_CODE_N = '\n'
+	LINE_BREAK_CODE_R = '\r'
+	GT                = '>'
+	BACK_QUOTE        = '`'
+	ASTERISK          = '*'
+	UNDER_SCORE       = '_'
+	LBRACKET          = "["
+	RBRACKET          = "]"
+	LPAREN            = "("
+	RPAREN            = ")"
 )
 
 var (
@@ -45,13 +45,13 @@ type Lexer struct {
 
 func New(input []byte) *Lexer {
 	// 必ず最後は改行コードで終わらせたい
-	if !bytes.HasSuffix(input, []byte("\n")) {
-		input = append(input, '\n')
+	if !bytes.HasSuffix(input, []byte{LINE_FEED_CODE_N}) {
+		input = append(input, LINE_FEED_CODE_N)
 	}
 
 	l := &Lexer{
 		input:                  input,
-		beforeCh:               '\n', // 直前の文字の初期値は改行コード
+		beforeCh:               LINE_FEED_CODE_N, // 直前の文字の初期値は改行コード
 		startedAsteriskToken:   token.NONE,
 		startedUnderScoreToken: token.NONE,
 	}
@@ -69,14 +69,14 @@ func (l *Lexer) NextToken() token.Token {
 
 	switch l.currentCh {
 	case '#':
-		if isLineFeedCode(l.beforeCh) {
+		if isLineBreakCode(l.beforeCh) {
 			literal := l.readHeading()
 			nextCh := l.peekNextChar()
 			if isSpace(nextCh) {
 				tok = newToken(token.GetHeadingToken(len(literal)))
 				// 空白をスキップする
 				l.readChar()
-			} else if isLineFeedCode(nextCh) && len(literal) == 3 {
+			} else if isLineBreakCode(nextCh) && len(literal) == 3 {
 				l.readChar()
 				tok = newToken(token.HORIZON)
 			} else {
@@ -90,10 +90,10 @@ func (l *Lexer) NextToken() token.Token {
 			tok = newToken(token.STRING, l.readString()...)
 		}
 	case '-':
-		if isLineFeedCode(l.beforeCh) {
+		if isLineBreakCode(l.beforeCh) {
 			literal := l.readHyphen()
 			nextCh := l.peekNextChar()
-			if isLineFeedCode(nextCh) && len(literal) == 3 {
+			if isLineBreakCode(nextCh) && len(literal) == 3 {
 				tok = newToken(token.HORIZON)
 			} else if isSpace(nextCh) && len(literal) == 1 {
 				tok = newToken(token.HYPHEN, literal...)
@@ -105,9 +105,9 @@ func (l *Lexer) NextToken() token.Token {
 				tok = newToken(token.STRING, tmpChs...)
 			}
 		} else if isTab(l.beforeCh) {
-			if isLineFeedCode(l.twoBeforeChar()) {
+			if isLineBreakCode(l.twoBeforeChar()) {
 				tok = newToken(token.HYPHEN, l.currentCh)
-			} else if isTab(l.twoBeforeChar()) && isLineFeedCode(l.threeBeforeChar()) {
+			} else if isTab(l.twoBeforeChar()) && isLineBreakCode(l.threeBeforeChar()) {
 				tok = newToken(token.HYPHEN, l.currentCh)
 			} else {
 				tok = newToken(token.STRING, l.currentCh)
@@ -127,7 +127,7 @@ func (l *Lexer) NextToken() token.Token {
 		l.startedUnderScoreToken = token.NONE
 		tok = newToken(token.LINE_FEED_CODE)
 	case '>':
-		if isLineFeedCode(l.beforeCh) {
+		if isLineBreakCode(l.beforeCh) {
 			literal := l.readCitation()
 			tok = newToken(token.GetCitationToken(len(literal)))
 		} else {
@@ -136,7 +136,7 @@ func (l *Lexer) NextToken() token.Token {
 	case '`':
 		if l.startedBackQuoteArea {
 			nextCh := l.peekNextChar()
-			if isSpace(nextCh) || isLineFeedCode(nextCh) {
+			if isSpace(nextCh) || isLineBreakCode(nextCh) {
 				tok = newToken(token.BACK_QUOTE_FINISH)
 			} else {
 				tok = newToken(token.STRING, l.readString()...)
@@ -144,7 +144,7 @@ func (l *Lexer) NextToken() token.Token {
 			l.startedBackQuoteArea = false
 		} else {
 			switch {
-			case isLineFeedCode(l.beforeCh):
+			case isLineBreakCode(l.beforeCh):
 				if l.existsByEndOfLine([]byte("` ")) {
 					l.startedBackQuoteArea = true
 					tok = newToken(token.BACK_QUOTE_BEGIN)
@@ -170,7 +170,7 @@ func (l *Lexer) NextToken() token.Token {
 			switch l.startedAsteriskToken {
 			case token.ASTERISK_ITALIC_BEGIN:
 				nextCh := l.peekNextChar()
-				if isSpace(nextCh) || isLineFeedCode(nextCh) {
+				if isSpace(nextCh) || isLineBreakCode(nextCh) {
 					tok = newToken(token.ASTERISK_ITALIC_FINISH)
 				} else {
 					tok = newToken(token.STRING, l.readString()...)
@@ -179,7 +179,7 @@ func (l *Lexer) NextToken() token.Token {
 			case token.ASTERISK_BOLD_BEGIN:
 				if isAsterisk(l.peekNextChar()) {
 					peek2ndOrderChar := l.peek2ndOrderChar()
-					if isSpace(peek2ndOrderChar) || isLineFeedCode(peek2ndOrderChar) {
+					if isSpace(peek2ndOrderChar) || isLineBreakCode(peek2ndOrderChar) {
 						l.readAsterisk()
 						tok = newToken(token.ASTERISK_BOLD_FINISH)
 					} else {
@@ -193,7 +193,7 @@ func (l *Lexer) NextToken() token.Token {
 				if isAsterisk(l.peekNextChar()) {
 					if isAsterisk(l.peek2ndOrderChar()) {
 						peek3ndOrderChar := l.peek3ndOrderChar()
-						if isSpace(peek3ndOrderChar) || isLineFeedCode(peek3ndOrderChar) {
+						if isSpace(peek3ndOrderChar) || isLineBreakCode(peek3ndOrderChar) {
 							l.readAsterisk()
 							tok = newToken(token.ASTERISK_ITALIC_BOLD_FINISH)
 						} else {
@@ -210,7 +210,7 @@ func (l *Lexer) NextToken() token.Token {
 
 		} else {
 			switch {
-			case isLineFeedCode(l.beforeCh):
+			case isLineBreakCode(l.beforeCh):
 				literal := l.readAsterisk()
 				var tmpChs []byte
 				tmpChs = append(tmpChs, literal...)
@@ -219,7 +219,7 @@ func (l *Lexer) NextToken() token.Token {
 					tokenType := token.GetAsteriskToken(len(literal))
 					l.startedAsteriskToken = tokenType
 					tok = newToken(tokenType)
-				} else if isLineFeedCode(l.peekNextChar()) && len(literal) == 3 {
+				} else if isLineBreakCode(l.peekNextChar()) && len(literal) == 3 {
 					tok = newToken(token.HORIZON)
 				} else {
 					tmpChs = nil
@@ -274,7 +274,7 @@ func (l *Lexer) NextToken() token.Token {
 			switch l.startedUnderScoreToken {
 			case token.UNDER_SCORE_ITALIC_BEGIN:
 				nextCh := l.peekNextChar()
-				if isSpace(nextCh) || isLineFeedCode(nextCh) {
+				if isSpace(nextCh) || isLineBreakCode(nextCh) {
 					tok = newToken(token.UNDER_SCORE_ITALIC_FINISH)
 				} else {
 					tok = newToken(token.STRING, l.readString()...)
@@ -283,7 +283,7 @@ func (l *Lexer) NextToken() token.Token {
 			case token.UNDER_SCORE_BOLD_BEGIN:
 				if isUnderScore(l.peekNextChar()) {
 					peek2ndOrderChar := l.peek2ndOrderChar()
-					if isSpace(peek2ndOrderChar) || isLineFeedCode(peek2ndOrderChar) {
+					if isSpace(peek2ndOrderChar) || isLineBreakCode(peek2ndOrderChar) {
 						l.readUnderScore()
 						tok = newToken(token.UNDER_SCORE_BOLD_FINISH)
 					} else {
@@ -297,7 +297,7 @@ func (l *Lexer) NextToken() token.Token {
 				if isUnderScore(l.peekNextChar()) {
 					if isUnderScore(l.peek2ndOrderChar()) {
 						peek3ndOrderChar := l.peek3ndOrderChar()
-						if isSpace(peek3ndOrderChar) || isLineFeedCode(peek3ndOrderChar) {
+						if isSpace(peek3ndOrderChar) || isLineBreakCode(peek3ndOrderChar) {
 							l.readUnderScore()
 							tok = newToken(token.UNDER_SCORE_ITALIC_BOLD_FINISH)
 						} else {
@@ -314,7 +314,7 @@ func (l *Lexer) NextToken() token.Token {
 
 		} else {
 			switch {
-			case isLineFeedCode(l.beforeCh):
+			case isLineBreakCode(l.beforeCh):
 				literal := l.readUnderScore()
 				var tmpChs []byte
 				tmpChs = append(tmpChs, literal...)
@@ -323,7 +323,7 @@ func (l *Lexer) NextToken() token.Token {
 					tokenType := token.GetUnderScoreToken(len(literal))
 					l.startedUnderScoreToken = tokenType
 					tok = newToken(tokenType)
-				} else if isLineFeedCode(l.peekNextChar()) && len(literal) == 3 {
+				} else if isLineBreakCode(l.peekNextChar()) && len(literal) == 3 {
 					tok = newToken(token.HORIZON)
 				} else {
 					tmpChs = nil
@@ -486,7 +486,7 @@ func (l *Lexer) existsByEndOfLine(chs []byte) bool {
 			// 1つでも見つかればOK
 			return true
 		}
-		if isLineFeedCode(ch) {
+		if isLineBreakCode(ch) {
 			break
 		}
 	}
@@ -540,25 +540,25 @@ func (l *Lexer) readString() []byte {
 		nextCh := l.peekNextChar()
 		var breakFlg bool
 		switch {
-		case isSpace(nextCh), isLineFeedCode(nextCh):
+		case isSpace(nextCh), isLineBreakCode(nextCh):
 			breakFlg = true
 		case isBackQuote(nextCh):
 			peeked2ndOrderCh := l.peek2ndOrderChar()
-			if isSpace(peeked2ndOrderCh) || isLineFeedCode(peeked2ndOrderCh) {
+			if isSpace(peeked2ndOrderCh) || isLineBreakCode(peeked2ndOrderCh) {
 				breakFlg = true
 			}
 		case isAsterisk(nextCh):
 			switch l.startedAsteriskToken {
 			case token.ASTERISK_ITALIC_BEGIN:
 				peeked2ndOrderCh := l.peek2ndOrderChar()
-				if isSpace(peeked2ndOrderCh) || isLineFeedCode(peeked2ndOrderCh) {
+				if isSpace(peeked2ndOrderCh) || isLineBreakCode(peeked2ndOrderCh) {
 					breakFlg = true
 				}
 			case token.ASTERISK_BOLD_BEGIN:
 				peeked2ndOrderCh := l.peek2ndOrderChar()
 				if isAsterisk(peeked2ndOrderCh) {
 					peeked3ndOrderCh := l.peek3ndOrderChar()
-					if isSpace(peeked3ndOrderCh) || isLineFeedCode(peeked3ndOrderCh) {
+					if isSpace(peeked3ndOrderCh) || isLineBreakCode(peeked3ndOrderCh) {
 						breakFlg = true
 					}
 				}
@@ -568,7 +568,7 @@ func (l *Lexer) readString() []byte {
 					peeked3ndOrderCh := l.peek3ndOrderChar()
 					if isAsterisk(peeked3ndOrderCh) {
 						peeked4ndOrderCh := l.peek4ndOrderChar()
-						if isSpace(peeked4ndOrderCh) || isLineFeedCode(peeked4ndOrderCh) {
+						if isSpace(peeked4ndOrderCh) || isLineBreakCode(peeked4ndOrderCh) {
 							breakFlg = true
 						}
 					}
@@ -578,14 +578,14 @@ func (l *Lexer) readString() []byte {
 			switch l.startedUnderScoreToken {
 			case token.UNDER_SCORE_ITALIC_BEGIN:
 				peeked2ndOrderCh := l.peek2ndOrderChar()
-				if isSpace(peeked2ndOrderCh) || isLineFeedCode(peeked2ndOrderCh) {
+				if isSpace(peeked2ndOrderCh) || isLineBreakCode(peeked2ndOrderCh) {
 					breakFlg = true
 				}
 			case token.UNDER_SCORE_BOLD_BEGIN:
 				peeked2ndOrderCh := l.peek2ndOrderChar()
 				if isUnderScore(peeked2ndOrderCh) {
 					peeked3ndOrderCh := l.peek3ndOrderChar()
-					if isSpace(peeked3ndOrderCh) || isLineFeedCode(peeked3ndOrderCh) {
+					if isSpace(peeked3ndOrderCh) || isLineBreakCode(peeked3ndOrderCh) {
 						breakFlg = true
 					}
 				}
@@ -595,7 +595,7 @@ func (l *Lexer) readString() []byte {
 					peeked3ndOrderCh := l.peek3ndOrderChar()
 					if isUnderScore(peeked3ndOrderCh) {
 						peeked4ndOrderCh := l.peek4ndOrderChar()
-						if isSpace(peeked4ndOrderCh) || isLineFeedCode(peeked4ndOrderCh) {
+						if isSpace(peeked4ndOrderCh) || isLineBreakCode(peeked4ndOrderCh) {
 							breakFlg = true
 						}
 					}
@@ -619,7 +619,7 @@ func (l *Lexer) readString() []byte {
 	return l.input[position : l.currentPosition+1]
 }
 
-func isLineFeedCode(ch byte) bool {
+func isLineBreakCode(ch byte) bool {
 	return ch == '\n' || ch == '\r'
 }
 
