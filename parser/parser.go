@@ -7,11 +7,13 @@ import (
 	"github.com/istsh/markdown-viewer/token"
 )
 
+// Parser has a lexer pointer.
 type Parser struct {
 	l *lexer.Lexer
 	//errors []string
 }
 
+// New initializes Parser.
 func New(l *lexer.Lexer) *Parser {
 	p := &Parser{
 		l: l,
@@ -21,6 +23,7 @@ func New(l *lexer.Lexer) *Parser {
 	return p
 }
 
+// Parse parses markdown text to html text.
 func (p *Parser) Parse() []byte {
 	var result []byte
 
